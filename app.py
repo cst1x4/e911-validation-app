@@ -151,7 +151,6 @@ with input_panel:
                     st.session_state.live_extracted_parcel = "READY"
                     
                     # 2. LIVE USPS REGISTRY MATRIX HANDSHAKE
-                    # Queries a postal delivery reference matrix to pull standardized fields live
                     usps_lookup_url = f"https://api.zippopotam.us/us/{ui_zip_str.strip()}"
                     try:
                         usps_res = requests.get(usps_lookup_url, timeout=5).json()
@@ -162,16 +161,15 @@ with input_panel:
                             st.session_state.usps_state = primary_place.get("state abbreviation", "").upper()
                             st.session_state.usps_standardized_line1 = ui_street_str.strip().upper()
                             
-                            # Build out the authorized multi-municipality index dynamically based on region
+                            # Build out authorized multi-municipality index dynamically based on region
                             base_city = st.session_state.usps_primary_city
                             if "DENVER" in base_city:
                                 st.session_state.usps_allowed_municipalities = ["DENVER", "GLENDALE", "CHERRY CREEK", "DOWNTOWN BOXES"]
                             elif "STRASBURG" in base_city:
                                 st.session_state.usps_allowed_municipalities = ["STRASBURG", "BENNETT", "BYERS"]
                             else:
-                                st.session_state.usps_allowed_municipalities = [base_city, f"LOCAL SATELLITE Sector", f"{base_city} delivery box"]
+                                st.session_state.usps_allowed_municipalities = [base_city, "LOCAL SATELLITE Sector", f"{base_city} delivery box"]
                     except:
-                        # Baseline postal fallback mapping values if reference server times out
                         st.session_state.usps_primary_city = "UNRESOLVED"
                         st.session_state.usps_allowed_municipalities = ["DATA COMPLETION EXCEPTION"]
                     
@@ -195,120 +193,4 @@ with display_panel:
     if st.session_state.get("output_county") == "NOT_FOUND":
         st.error("Stage 1 Exception: Address Footprint Unmapped")
         st.markdown(
-            f"The location string `{st.session_state.current_street}` with ZIP `{st.session_state.current_zip}` "
-            "could not be mapped to any recognized municipal or county spatial plot."
-        )
-        
-        st.markdown("#### Automated Exception Routing")
-        fallback_recipient = "gis_data_integrity@co.municipal.gov"
-        fallback_subject = f"CRITICAL E911 UNMAPPED FOOTPRINT ALERT: {st.session_state.current_street}"
-        fallback_body = f"Hello GIS Operations Division,\n\nOur E911 system flagged an unmapped address footprint at: {st.session_state.current_street}."
-        mailto_url = f"mailto:{fallback_recipient}?subject={urllib.parse.quote(fallback_subject)}&body={urllib.parse.quote(fallback_body)}"
-        st.link_button("Route Core Discrepancy Ticket to County", mailto_url, use_container_width=True)
-
-    elif st.session_state.gis_is_active:
-        target_county = st.session_state.output_county
-        st.success(f"Target Jurisdiction Confirmed: {target_county.upper()}")
-        
-        with st.container(border=True):
-            st.markdown("### Geographic Telemetry Metrics")
-            st.markdown(f"**Verified GIS Boundary:** `{target_county}`")
-            st.markdown(f"**Calculated Latitude:** `{st.session_state.output_lat}`")
-            st.markdown(f"**Calculated Longitude:** `{st.session_state.output_lon}`")
-            st.divider()
-            st.caption(f"**System Standardized Ingestion String:**\n`{st.session_state.output_display_name}`")
-        
-        search_query = f"official {target_county} government property parcel assessor account lookup site:.gov"
-        county_search_portal_url = f"https://www.google.com/search?q={urllib.parse.quote(search_query)}"
-        st.link_button(f"Manual Override: Inspect Official {target_county} Portal", county_search_portal_url, use_container_width=True)
-        
-    else:
-        st.info("Awaiting manual input initialization to extract official spatial parameters...")
-
-# --- STAGE 1B: COMPLIANT LIVE ATTRIBUTE EXTRACTION ENGINE ---
-st.markdown("---")
-parcel_col, usps_col = st.columns([1, 1], gap="large")
-
-with parcel_col:
-    st.header("Parcel Information")
-
-    if st.session_state.live_extracted_parcel in ["READY", "FETCHING", "EXTRACTED"]:
-        st.markdown("Execute the automated attribute resolution layer below to verify data coordinates live.")
-        
-        if st.button("Pull Live Property Attributes from Regional Feature Layer", type="secondary", use_container_width=True):
-            st.session_state.live_extracted_parcel = "FETCHING"
-            
-            with st.status("Querying Municipal ArcGIS Spatial Database Features...", expanded=True) as status:
-                st.write("Executing reverse spatial validation against regional boundary vectors...")
-                
-                lat = st.session_state.output_lat
-                lon = st.session_state.output_lon
-                
-                # Live Direct Denver Government Feature Server Handshake
-                if "denver" in st.session_state.output_display_name.lower():
-                    denver_endpoint = f"https://services1.arcgis.com/zdB7qR0BtYbdYjST/arcgis/rest/services/Real_Property_Geographic_Data/FeatureServer/0/query?geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=SCHED_NUM&f=json"
-                    try:
-                        res_gis = requests.get(denver_endpoint, timeout=10).json()
-                        features = res_gis.get("features", [])
-                        if features:
-                            attrs = features[0].get("attributes", {})
-                            computed_parcel = attrs.get("SCHED_NUM", "0631119014000")
-                        else:
-                            computed_parcel = "0631119014000"
-                    except:
-                        computed_parcel = "0631119014000"
-                        
-                elif "colorado" in st.session_state.output_display_name.lower():
-                    gis_endpoint = f"https://services1.arcgis.com/K9v9Gsc9rWSiWvPh/arcgis/rest/services/Colorado_County_Boundaries/FeatureServer/0/query?geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&f=json"
-                    try:
-                        res_gis = requests.get(gis_endpoint, timeout=8).json()
-                        features = res_gis.get("features", [])
-                        if features:
-                            attrs = features[0].get("attributes", {})
-                            computed_parcel = f"{attrs.get('OBJECTID', '1983')}-04-2-{attrs.get('COUNTYFIPS', '14')}-018"
-                        else:
-                            computed_parcel = "1983-04-2-14-018"
-                    except:
-                        computed_parcel = "1983-04-2-14-018"
-                else:
-                    hash_base = abs(hash(f"{lat}{lon}"))
-                    computed_parcel = f"{str(hash_base)[:4]}-04-2-{str(hash_base)[4:6]}-018"
-                
-                st.session_state.live_extracted_parcel = "EXTRACTED"
-                st.session_state.locked_parcel_value = computed_parcel
-                status.update(label="Spatial Intersection Complete. Attributes Verified.", state="complete")
-        
-        if st.session_state.live_extracted_parcel == "EXTRACTED":
-            with st.container(border=True):
-                current_label = st.session_state.parcel_label
-                st.success(f"VERIFIED LIVE RECORD {current_label}: {st.session_state.locked_parcel_value}")
-                st.caption(f"Database sync locked directly to structural node coordinate geometries.")
-    else:
-        st.caption("Status note: Run a location query above to activate the parcel panel.")
-
-with usps_col:
-    st.header("USPS Validation Search")
-    
-    if st.session_state.gis_is_active and st.session_state.usps_primary_city:
-        with st.container(border=True):
-            st.markdown("### Standardized Postal Delivery Frame")
-            st.markdown(f"**USPS Line 1 String:** `{st.session_state.usps_standardized_line1}`")
-            st.markdown(f"**Primary Delivery City:** `{st.session_state.usps_primary_city}`")
-            st.markdown(f"**State Sector Code:** `{st.session_state.usps_state}`")
-            st.markdown(f"**ZIP Delivery Anchor:** `{st.session_state.current_zip}-0001`")
-            
-        st.markdown("### Authorized Multi-Municipality Route Index")
-        st.markdown("The following localized sectors are recognized by federal routing tables for this specific ZIP code boundary:")
-        
-        # Formulate clean pandas dataframe to present multi-municipality entries
-        df_usps_matrix = pd.DataFrame({
-            "Recognized Names": st.session_state.usps_allowed_municipalities,
-            "Verification Status": ["PRIMARY MAIN" if m == st.session_state.usps_primary_city else "AUTHORIZED LOCAL SECTOR" for m in st.session_state.usps_allowed_municipalities]
-        })
-        st.table(df_usps_matrix)
-        
-        # Cross-reference warning notification engine for enterprise demos
-        if "denver" in st.session_state.output_county.lower() and "STRASBURG" in st.session_state.usps_primary_city:
-            st.warning("Reconciliation Alert: Cross-Reference indicates a municipal boundary intersection change.")
-    else:
-        st.caption("Status note: Run a location query above to activate the federal database index layout.")
+            f"The location string
