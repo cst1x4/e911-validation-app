@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 import urllib.parse
 import pandas as pd
-import streamlit.components.v1 as components
 
 # --- MASTER SUITE INITIALIZATION ---
 st.set_page_config(page_title="E911 Enterprise Automation Suite", layout="wide")
@@ -89,4 +88,21 @@ with input_panel:
         st.session_state.usps_allowed_municipalities = []
         st.rerun()
     
-    # --- SEARCH COMPONENT
+    # --- SEARCH COMPONENT SYSTEM LOGIC ---
+    if search_clicked:
+        if ui_street_str.strip() and ui_zip_str.strip():
+            
+            # Flush state slots to ensure clean processing
+            st.session_state.gis_is_active = False
+            st.session_state.live_extracted_parcel = "NOT_HARVESTED"
+            st.session_state.locked_parcel_value = ""
+            
+            # 1. GIS RESOLUTION CHAIN
+            query_string = f"{ui_street_str.strip()}, {ui_zip_str.strip()}"
+            api_url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(query_string)}&format=json&addressdetails=1&countrycodes=us&limit=1"
+            headers = {"User-Agent": "CSTerrellART_E911_Automation_Suite/1.0 (contact: support@csterrellart.com)"}
+            
+            try:
+                with st.spinner("Broadcasting coordinate lookup handshakes to global GIS servers..."):
+                    response = requests.get(api_url, headers=headers, timeout=10)
+                    data = response.json()
