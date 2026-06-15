@@ -55,9 +55,9 @@ with input_panel:
     st.header("Address Search")
     st.markdown("Enter data fields below. Executing a new search will clear previous states automatically.")
     
-    # Input Elements linked directly to session values to support clean Resets
-    ui_street_str = st.text_input("Street Address String", value=st.session_state.current_street if st.session_state.gis_is_active else "", placeholder="e.g., 10545 Pawnee St")
-    ui_zip_str = st.text_input("5-Digit ZIP Code", value=st.session_state.current_zip if st.session_state.gis_is_active else "", max_chars=5, placeholder="e.g., 80136")
+    # CRITICAL UI FIX: Inputs now map directly to session states via the 'key' argument
+    ui_street_str = st.text_input("Street Address String", key="current_street", placeholder="e.g., 10545 Pawnee St")
+    ui_zip_str = st.text_input("5-Digit ZIP Code", key="current_zip", max_chars=5, placeholder="e.g., 80136")
     
     st.markdown(" ")
     
@@ -72,6 +72,7 @@ with input_panel:
 
     # --- RESET BUTTON SYSTEM LOGIC ---
     if reset_clicked:
+        # Wiping widget state variables directly via their assigned key slots
         st.session_state.current_street = ""
         st.session_state.current_zip = ""
         st.session_state.gis_is_active = False
@@ -92,7 +93,7 @@ with input_panel:
     if search_clicked:
         if ui_street_str.strip() and ui_zip_str.strip():
             
-            # Flush state slots to ensure clean processing
+            # Flush internal states to ensure clean background calculations
             st.session_state.gis_is_active = False
             st.session_state.live_extracted_parcel = "NOT_HARVESTED"
             st.session_state.locked_parcel_value = ""
@@ -140,13 +141,11 @@ with input_panel:
                     else:
                         st.session_state.parcel_label = "PARCEL ID"
                     
-                    # Store GIS attributes
+                    # Store data parameters 
                     st.session_state.output_county = final_county
                     st.session_state.output_lat = res.get("lat")
                     st.session_state.output_lon = res.get("lon")
                     st.session_state.output_display_name = res.get("display_name", "").upper()
-                    st.session_state.current_street = ui_street_str.strip().upper()
-                    st.session_state.current_zip = ui_zip_str.strip()
                     st.session_state.gis_is_active = True
                     st.session_state.live_extracted_parcel = "READY"
                     
@@ -176,8 +175,6 @@ with input_panel:
                 else:
                     st.session_state.gis_is_active = False
                     st.session_state.output_county = "NOT_FOUND"
-                    st.session_state.current_street = ui_street_str.strip().upper()
-                    st.session_state.current_zip = ui_zip_str.strip()
                     st.session_state.live_extracted_parcel = "NOT_FOUND"
                     
                 st.rerun()
@@ -295,13 +292,12 @@ with usps_col:
             st.markdown(f"**State Sector Code:** `{st.session_state.usps_state}`")
             st.markdown(f"**ZIP Delivery Anchor:** `{st.session_state.current_zip}-0001`")
             
-        # --- DIRECT IFRAME LAYOUT OVERRIDE ---
+        # Embedded visual verification map segment
         st.markdown("### Visual Structural Audit")
         
         lat_val = st.session_state.output_lat
         lon_val = st.session_state.output_lon
         
-        # Uses Streamlit's native macro string embedding layout to show the dynamic OpenStreetMap rendering natively
         st.markdown(
             f'<iframe width="100%" height="260" frameborder="0" src="https://maps.google.com/maps?q={lat_val},{lon_val}&hl=en&z=18&output=embed"></iframe>',
             unsafe_allow_html=True
