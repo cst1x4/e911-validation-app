@@ -1,149 +1,145 @@
 import streamlit as st
-import pandas as pd
+import requests
 import urllib.parse
 
-# --- MASTER DEMO INITIALIZATION ---
-st.set_page_config(page_title="E911 Enterprise Automation Suite", layout="wide", page_icon="🛡️")
+# --- MASTER SUITE INITIALIZATION ---
+st.set_page_config(page_title="E911 Validation Suite - Stage 1", layout="wide", page_icon="🛡️")
 
 st.title("🛡️ E911 Location Metadata Automation Sandbox")
-st.subheader("Enterprise Demonstration Portal: Manual Address Search & Verification Routing")
+st.subheader("Stage 1 Focused Optimization: Live County Boundary & Parcel Resolver")
 st.markdown("---")
 
-# Production-Grade Sandbox Mock Database
-MOCK_COUNTY_REGISTRY = {
-    "1560 broadway": {"parcel": "02341-21-009-000", "county": "Denver County", "url": "https://www.denvergov.org/Property"},
-    "1699 s colorado blvd": {"parcel": "05213-04-112-000", "county": "Denver County", "url": "https://www.denvergov.org/Property"},
-    "5690 greenwood plaza blvd": {"parcel": "2075-16-3-01-002", "county": "Arapahoe County", "url": "https://www.arapahoegov.com/Assessor"}
-}
+st.markdown(
+    """
+    **Demonstration Mechanics:** This interface executes live spatial queries. 
+    Type any valid US street address and ZIP code below to programmatically determine its official county jurisdiction 
+    via coordinate spatial telemetry, link directly to its government portal, or queue an automated data discrepancy email.
+    """
+)
 
-MOCK_USPS_ZIP_MATRIX = {
-    "80202": {
-        "standardized_street": "1560 BROADWAY",
-        "primary_city": "DENVER",
-        "allowed_municipalities": ["DENVER", "DOWNTOWN BOXES", "CAPITOL HILL STN"]
-    },
-    "80222": {
-        "standardized_street": "1699 S COLORADO BLVD",
-        "primary_city": "DENVER",
-        "allowed_municipalities": ["DENVER", "GLENDALE", "CHERRY CREEK"]
-    },
-    "80111": {
-        "standardized_street": "5690 GREENWOOD PLAZA BLVD",
-        "primary_city": "GREENWOOD VILLAGE",
-        "allowed_municipalities": ["GREENWOOD VILLAGE", "ENGLEWOOD", "CENTENNIAL", "ORCHARD HILLS"]
-    }
-}
+# --- INITIALIZE PERSISTENT SESSION STATES ---
+if "searched_street" not in st.session_state:
+    st.session_state.searched_street = ""
+if "searched_zip" not in st.session_state:
+    st.session_state.searched_zip = ""
+if "gis_resolved" not in st.session_state:
+    st.session_state.gis_resolved = False
+if "resolved_county" not in st.session_state:
+    st.session_state.resolved_county = None
+if "resolved_lat" not in st.session_state:
+    st.session_state.resolved_lat = None
+if "resolved_lon" not in st.session_state:
+    st.session_state.resolved_lon = None
+if "standardized_address" not in st.session_state:
+    st.session_state.standardized_address = ""
 
-# --- INITIALIZE PERSISTENT MEMORY SLOTS ---
-if "active_street" not in st.session_state:
-    st.session_state.active_street = ""
-if "active_zip" not in st.session_state:
-    st.session_state.active_zip = ""
-if "active_unit" not in st.session_state:
-    st.session_state.active_unit = ""
-if "search_executed" not in st.session_state:
-    st.session_state.search_executed = False
+# --- LIVE LAYOUT ARCHITECTURE ---
+input_panel, display_panel = st.columns([1, 1], gap="large")
 
-# --- DUAL COLUMN DISPLAY ARCHITECTURE ---
-input_col, diagnostic_col = st.columns([1, 1], gap="large")
-
-with input_col:
-    st.header("📥 Manual Address Ingestion")
-    st.markdown("Manually input an address string below to test the deterministic cross-reference engine.")
+with input_panel:
+    st.header("📥 Live Data Ingestion Engine")
     
-    # Text inputs bound to session state parameters
-    input_street = st.text_input("Street Address String", value=st.session_state.active_street, placeholder="e.g., 1560 Broadway")
-    input_zip = st.text_input("5-Digit ZIP Code", value=st.session_state.active_zip, max_chars=5, placeholder="e.g., 80202")
-    input_unit = st.text_input("Unit / Apt / Suite (Optional)", value=st.session_state.active_unit, placeholder="e.g., Suite 300")
+    # Core Manual Inputs
+    ui_street = st.text_input("Street Address String", placeholder="e.g., 1560 Broadway")
+    ui_zip = st.text_input("5-Digit ZIP Code", max_chars=5, placeholder="e.g., 80202")
     
     st.markdown(" ")
     
-    # 🔎 THE SEARCH COMPONENT
-    if st.button("🔎 Execute Validation Search", type="primary", use_container_width=True):
-        if input_street.strip() and input_zip.strip():
-            st.session_state.active_street = input_street.strip()
-            st.session_state.active_zip = input_zip.strip()
-            st.session_state.active_unit = input_unit.strip()
-            st.session_state.search_executed = True
-            st.rerun()
-        else:
-            st.error("⚠️ Ingestion Failure: Both a Street Address and a ZIP Code are required to map data registries.")
-
-    st.markdown("---")
-    st.markdown("### 🗺️ Registry 1: County Parcel & GIS API Gateway")
-    
-    if st.session_state.search_executed:
-        clean_street_key = st.session_state.active_street.lower()
-        
-        if clean_street_key in MOCK_COUNTY_REGISTRY:
-            county_data = MOCK_COUNTY_REGISTRY[clean_street_key]
-            parcel_val = county_data["parcel"]
-            st.success(f"🎯 **Official Parcel Identified:** `{parcel_val}`")
-            st.caption(f"Secure handshake verified via **[{county_data['county']}]({county_data['url']})**")
-            parcel_found = True
-            assigned_county = county_data['county']
-        else:
-            st.error("❌ **Stage 1 Exception: Parcel Records Unavailable**")
-            st.markdown(
-                f"👉 *System Status Note:* The address `{st.session_state.active_street.upper()}` cannot be matched to a local county GIS plot. "
-                "In a live deployment, this creates an active routing hazard for emergency services."
-            )
-            parcel_found = False
+    # 🔎 DYNAMIC EXECUTION ENGINE
+    if st.button("🔎 Execute Live County Verification Search", type="primary", use_container_width=True):
+        if ui_street.strip() and ui_zip.strip():
+            # Construct standard US Geocoding query URL using open public telemetry vectors
+            query_string = f"{ui_street.strip()}, {ui_zip.strip()}"
+            api_url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(query_string)}&format=json&addressdetails=1&countrycodes=us&limit=1"
             
-            # Automated Exception Routing Email Generator
-            st.markdown("#### 📧 Automated Discrepancy Routing Queue")
-            email_recipient = "gis_data_integrity@co.municipal.gov"
-            email_subject = f"E911 Database Discrepancy: Missing Parcel Data for {st.session_state.active_street.upper()}"
-            email_body = (
-                f"Hello GIS Department,\n\n"
-                f"Our E911 Location Integrity engine flagged an unmapped address footprint:\n"
-                f"Address: {st.session_state.active_street.upper()}, Suite: {st.session_state.active_unit if st.session_state.active_unit else 'N/A'}, ZIP: {st.session_state.active_zip}\n\n"
-                f"Please verify the official parcel assignment and boundary vectors so we can update our emergency routing switches.\n\n"
-                f"System Log Signature: CST-E911-AUTO-ERR"
-            )
+            # Inject a mandatory user-agent header to ensure compliant handshakes with the API servers
+            headers = {"User-Agent": "CSTerrellART_E911_Automation_Suite/1.0 (contact: support@csterrellart.com)"}
             
-            mailto_link = f"mailto:{email_recipient}?subject={urllib.parse.quote(email_subject)}&body={urllib.parse.quote(email_body)}"
-            st.link_button("📥 Open Discrepancy Email Ticket to County", mailto_link, use_container_width=True)
-    else:
-        st.info("Awaiting manual input initialization...")
-
-with diagnostic_col:
-    st.header("📯 Registry 2: USPS AMS Standardization")
-    
-    if st.session_state.search_executed:
-        active_zip_str = st.session_state.active_zip
-        
-        if active_zip_str in MOCK_USPS_ZIP_MATRIX:
-            usps_data = MOCK_USPS_ZIP_MATRIX[active_zip_str]
-            
-            # Complete Postal Manual Alignment Display
-            with st.container(border=True):
-                st.markdown("### 📬 Output Standardized Data Payload")
-                st.markdown(f"**USPS Standardized Line 1:** `{usps_data['standardized_street']}`")
-                if st.session_state.active_unit:
-                    st.markdown(f"**USPS Standardized Line 2:** `{st.session_state.active_unit.upper()}`")
-                st.markdown(f"**Target Mail Routing City:** `{usps_data['primary_city']}`")
-                st.markdown(f"**ZIP + 4 Delivery Indicator:** `{active_zip_str}-4312`")
-            
-            # Display Allowed Municipalities from the USPS City State Product Matrix
-            st.markdown("### 🏢 Authorized Multi-Municipality Route Index")
-            st.caption("The following city names are legally recognized by the USPS AMS database for this specific ZIP code:")
-            
-            df_municipalities = pd.DataFrame({
-                "Authorized Municipal Names": usps_data["allowed_municipalities"],
-                "Routing Status": ["PRIMARY" if m == usps_data["primary_city"] else "ACCEPTABLE SECTOR" for m in usps_data["allowed_municipalities"]]
-            })
-            st.table(df_municipalities)
-            
-            # Automated Cross-Reference Verification Step
-            if 'parcel_found' in locals() and parcel_found:
-                st.markdown("### 🏁 Cross-Reference Logic State")
-                if "Arapahoe" in assigned_county and usps_data['primary_city'] == "DENVER":
-                    st.error("🚨 **CRITICAL COUNTY BOUNDARY MISMATCH DETECTED**")
-                    st.caption("🚨 *Impact Analyst Warning:* USPS billing lists say 'Denver', but the local GIS database places this location inside Arapahoe County limits. Standard emergency routing vectors will fail.")
+            try:
+                with st.spinner("Executing secure coordinate handshakes with remote GIS registries..."):
+                    response = requests.get(api_url, headers=headers, timeout=10)
+                    data = response.json()
+                
+                if data:
+                    res = data[0]
+                    address_details = res.get("address", {})
+                    
+                    # Lock calculated attributes straight into persistent memory
+                    st.session_state.resolved_county = address_details.get("county", "Unknown County")
+                    st.session_state.resolved_lat = res.get("lat")
+                    st.session_state.resolved_lon = res.get("lon")
+                    st.session_state.standardized_address = res.get("display_name", "").upper()
+                    st.session_state.searched_street = ui_street.strip().upper()
+                    st.session_state.searched_zip = ui_zip.strip()
+                    st.session_state.gis_resolved = True
                 else:
-                    st.success("✅ **Cross-Reference Passed:** County records align with USPS postal delivery sectors.")
+                    # Input could not be coordinates-mapped
+                    st.session_state.gis_resolved = False
+                    st.session_state.resolved_county = "NOT_FOUND"
+                    st.session_state.searched_street = ui_street.strip().upper()
+                    st.session_state.searched_zip = ui_zip.strip()
+                    
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"🌐 Remote GIS Network Timeout Exception: {str(e)}")
         else:
-            st.warning(f"⚠️ **USPS System Exception:** The ZIP code `{active_zip_str}` is outside the active demonstration index. Try testing `80202`, `80222`, or `80111` to show a successful registry mapping.")
+            st.error("⚠️ Validation Interrupted: Both a Street Address and a ZIP Code are required to loop API structures.")
+
+with display_panel:
+    st.header("🗺️ Stage 1: Official GIS Registry Output")
+    
+    if st.session_state.get("resolved_county") == "NOT_FOUND":
+        st.error("❌ **Stage 1 Exception: Location Footprint Unmapped**")
+        st.markdown(
+            f"The location string `{st.session_state.searched_street}` with ZIP `{st.session_state.searched_zip}` "
+            "could not be mapped to any recognized municipal or county spatial plot. "
+            "In an enterprise emergency setup, this unmapped footprint halts automatic spatial routing loops."
+        )
+        
+        # Programmatic Data Discrepancy Email Block
+        st.markdown("#### 📧 System-Generated Discrepancy Ticket")
+        st.caption("Because this target boundary footprint is completely unmapped, click below to route an infrastructure ticket directly to the municipal team:")
+        
+        fallback_recipient = "gis_data_integrity@co.municipal.gov"
+        fallback_subject = f"CRITICAL E911 UNMAPPED FOOTPRINT ALERT: {st.session_state.searched_street}"
+        fallback_body = (
+            f"Hello GIS Operations Division,\n\n"
+            f"Our E911 Location Metadata Engine flagged an completely unmapped location footprint:\n"
+            f"Target Boundary: {st.session_state.searched_street}, ZIP: {st.session_state.searched_zip}\n\n"
+            f"Please verify the official parcel assignment and municipal boundary vectors so we can resolve this emergency routing hazard.\n\n"
+            f"System Log Signature: CST-E911-STAGE1-MISSING"
+        )
+        
+        mailto_url = f"mailto:{fallback_recipient}?subject={urllib.parse.quote(fallback_subject)}&body={urllib.parse.quote(fallback_body)}"
+        st.link_button("📥 Route Core Discrepancy Ticket to County", mailto_url, use_container_width=True)
+
+    elif st.session_state.gis_resolved:
+        # Dynamic Successful Resolutions Panel
+        target_county = st.session_state.resolved_county
+        st.success(f"🎯 **Target County Identified:** `{target_county.upper()}`")
+        
+        with st.container(border=True):
+            st.markdown("### 📡 Geographic Telemetry Metrics")
+            st.markdown(f"**Verified GIS Boundary:** `{target_county}`")
+            st.markdown(f"**Calculated Spatial Latitude:** `{st.session_state.resolved_lat}`")
+            st.markdown(f"**Calculated Spatial Longitude:** `{st.session_state.resolved_lon}`")
+            st.caption(f"**System Standardized Ingestion String:**\n`{st.session_state.standardized_address}`")
+        
+        # Build direct external lookup link to the specific government site
+        st.markdown("### 🔗 County Web Portal Gateway")
+        st.markdown(
+            f"Because individual county governments maintain their own isolated assessor and parcel databases, "
+            f"use this dynamic portal gateway link to verify your parcel details directly on the official **{target_county}** system:"
+        )
+        
+        # Format a Google search query directly targeting the specific county's official property search engine
+        search_query = f"official {target_county} government property parcel assessor account lookup site:.gov"
+        encoded_search = urllib.parse.quote(search_query)
+        county_search_portal_url = f"https://www.google.com/search?q={encoded_search}"
+        
+        st.link_button(f"🌐 Connect Directly to Official {target_county} Search System", county_search_portal_url, use_container_width=True)
+        st.caption("ℹ️ *Enterprise Design Note:* In an integrated deployment, this button handshakes straight into the county's back-end database API via their official portal registry mapping rules.")
+        
     else:
-        st.caption("Awaiting live data stream inputs to map compliance metrics...")
+        st.info("Awaiting manual input initialization to extract official spatial parameters...")
