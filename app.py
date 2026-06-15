@@ -64,18 +64,35 @@ with input_panel:
                     res = data[0]
                     address_details = res.get("address", {})
                     
+                    # Extract alternative naming conventions from the spatial payload
                     raw_county = address_details.get("county")
+                    raw_county_district = address_details.get("county_district")
+                    raw_region = address_details.get("region")
                     raw_city = address_details.get("city")
                     raw_town = address_details.get("town")
+                    raw_village = address_details.get("village")
                     
-                    # --- CRITICAL AUTOMATION FIX: CONSOLIDATED MUNICIPAL OVERRIDES ---
-                    # If the county field is blank but the city is explicitly Denver, dynamically assign the county.
-                    if not raw_county and raw_city == "Denver":
-                        final_county = "Denver County"
-                    elif raw_county:
+                    # --- ENTERPRISE AUTOMATION FIX: DYNAMIC REGIONAL DATA EXTRACTION MATRIX ---
+                    final_county = None
+                    
+                    # Check our fallback keys sequentially to capture variations across states
+                    if raw_county:
                         final_county = raw_county
+                    elif raw_county_district:
+                        final_county = raw_county_district
+                    elif raw_region and "county" in raw_region.lower():
+                        final_county = raw_region
+                    # Check for consolidated city-counties (like Denver)
+                    elif raw_city == "Denver":
+                        final_county = "Denver County"
                     else:
-                        final_county = f"{raw_city if raw_city else raw_town if raw_town else 'Unknown'} County"
+                        # Construct a calculated regional fallback if explicit keys are entirely missing
+                        local_name = raw_city if raw_city else raw_town if raw_town else raw_village if raw_village else "Unknown"
+                        final_county = f"{local_name} County"
+                    
+                    # Clean up trailing syntax redundancies if the API returned a compound phrase
+                    if final_county and not final_county.lower().endswith("county") and not final_county.lower().endswith("parish"):
+                        final_county = f"{final_county} County"
                     
                     # Lock calculated attributes straight into persistent memory
                     st.session_state.resolved_county = final_county
@@ -86,7 +103,7 @@ with input_panel:
                     st.session_state.searched_zip = ui_zip.strip()
                     st.session_state.gis_resolved = True
                 else:
-                    # Input could not be coordinates-mapped
+                    # Input could not be coordinate-mapped
                     st.session_state.gis_resolved = False
                     st.session_state.resolved_county = "NOT_FOUND"
                     st.session_state.searched_street = ui_street.strip().upper()
