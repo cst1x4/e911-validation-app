@@ -64,8 +64,21 @@ with input_panel:
                     res = data[0]
                     address_details = res.get("address", {})
                     
+                    raw_county = address_details.get("county")
+                    raw_city = address_details.get("city")
+                    raw_town = address_details.get("town")
+                    
+                    # --- CRITICAL AUTOMATION FIX: CONSOLIDATED MUNICIPAL OVERRIDES ---
+                    # If the county field is blank but the city is explicitly Denver, dynamically assign the county.
+                    if not raw_county and raw_city == "Denver":
+                        final_county = "Denver County"
+                    elif raw_county:
+                        final_county = raw_county
+                    else:
+                        final_county = f"{raw_city if raw_city else raw_town if raw_town else 'Unknown'} County"
+                    
                     # Lock calculated attributes straight into persistent memory
-                    st.session_state.resolved_county = address_details.get("county", "Unknown County")
+                    st.session_state.resolved_county = final_county
                     st.session_state.resolved_lat = res.get("lat")
                     st.session_state.resolved_lon = res.get("lon")
                     st.session_state.standardized_address = res.get("display_name", "").upper()
@@ -105,9 +118,9 @@ with display_panel:
         fallback_subject = f"CRITICAL E911 UNMAPPED FOOTPRINT ALERT: {st.session_state.searched_street}"
         fallback_body = (
             f"Hello GIS Operations Division,\n\n"
-            f"Our E911 Location Metadata Engine flagged an completely unmapped location footprint:\n"
+            f"Our E911 Location Metadata Engine flagged a completely unmapped location footprint:\n"
             f"Target Boundary: {st.session_state.searched_street}, ZIP: {st.session_state.searched_zip}\n\n"
-            f"Please verify the official parcel assignment and municipal boundary vectors so we can resolve this emergency routing hazard.\n\n"
+            f"Please verify the official parcel assignment and municipal boundary vectors so we can update our emergency routing parameters.\n\n"
             f"System Log Signature: CST-E911-STAGE1-MISSING"
         )
         
@@ -124,6 +137,7 @@ with display_panel:
             st.markdown(f"**Verified GIS Boundary:** `{target_county}`")
             st.markdown(f"**Calculated Spatial Latitude:** `{st.session_state.resolved_lat}`")
             st.markdown(f"**Calculated Spatial Longitude:** `{st.session_state.resolved_lon}`")
+            st.divider()
             st.caption(f"**System Standardized Ingestion String:**\n`{st.session_state.standardized_address}`")
         
         # Build direct external lookup link to the specific government site
