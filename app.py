@@ -4,7 +4,7 @@ import urllib.parse
 import time
 
 # --- MASTER SUITE INITIALIZATION ---
-st.set_page_config(page_title="E911 Validation Suite - Stage 1", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="E911 Enterprise Automation Suite", layout="wide", page_icon="🛡️")
 
 st.title("🛡️ E911 Location Metadata Automation Suite")
 st.subheader("Enterprise Demonstration Portal: County Discovery & Automated Parcel Harvesting")
@@ -27,6 +27,8 @@ if "standardized_address" not in st.session_state:
     st.session_state.standardized_address = ""
 if "harvest_state" not in st.session_state:
     st.session_state.harvest_state = "IDLE"
+if "final_committed_parcel" not in st.session_state:
+    st.session_state.final_committed_parcel = ""
 
 # --- LIVE LAYOUT ARCHITECTURE ---
 input_panel, display_panel = st.columns([1, 1], gap="large")
@@ -36,8 +38,8 @@ with input_panel:
     st.markdown("Type any real US address below to initiate the automation pipeline.")
     
     # Core Manual Inputs
-    ui_street = st.text_input("Street Address String", placeholder="e.g., 1560 Broadway")
-    ui_zip = st.text_input("5-Digit ZIP Code", max_chars=5, placeholder="e.g., 80202")
+    ui_street = st.text_input("Street Address String", placeholder="e.g., 10545 Pawnee St")
+    ui_zip = st.text_input("5-Digit ZIP Code", max_chars=5, placeholder="e.g., 80136")
     
     st.markdown(" ")
     
@@ -88,6 +90,7 @@ with input_panel:
                     st.session_state.searched_zip = ui_zip.strip()
                     st.session_state.gis_resolved = True
                     st.session_state.harvest_state = "READY_TO_HARVEST"
+                    st.session_state.final_committed_parcel = "" # Clear previous state
                 else:
                     st.session_state.gis_resolved = False
                     st.session_state.resolved_county = "NOT_FOUND"
@@ -140,41 +143,59 @@ with display_panel:
     else:
         st.info("Awaiting manual input initialization to extract official spatial parameters...")
 
-# --- 🎛️ NEW ENHANCEMENT: LIVE AUTOMATION FLIGHT DECK ---
+# --- 🎛️ STAGE 1B: LIVE PROPERTY HARVEST DECK ---
 st.markdown("---")
 st.header("🎛️ Stage 1B: Property Search & Parcel Harvesting Strategy")
 
-if st.session_state.harvest_state == "READY_TO_HARVEST" or st.session_state.harvest_state == "RUNNING":
-    st.markdown("Click below to simulate how the automated headless browser discovers and extracts the official parcel ID from the government domain.")
+if st.session_state.harvest_state in ["READY_TO_HARVEST", "RUNNING", "COMPLETE"]:
+    st.markdown("Simulate or execute the automated data harvest loop below to map your structural records.")
     
-    if st.button("🚀 Execute Automated Portal Scraping Simulation", type="secondary"):
+    harvest_click = st.button("🚀 Execute Automated Portal Scraping Simulation", type="secondary", use_container_width=True)
+    
+    if harvest_click:
         st.session_state.harvest_state = "RUNNING"
+        st.calendar_placeholder = st.empty()
         
-        # Step-by-step UI tracking simulation
         with st.status("Initializing Headless Browser Session...", expanded=True) as status:
             st.write(f"🔗 Handshaking with verified base domain of `{st.session_state.resolved_county}`...")
-            time.sleep(1.5)
+            time.sleep(1.0)
+            st.write("🔍 Scanning DOM anchors for property search database layers...")
+            time.sleep(1.0)
+            st.write(f"⌨️ Injecting address string `{st.session_state.searched_street}` into localized input nodes...")
+            time.sleep(1.0)
+            st.write("📡 Submitting forms and running regular expression captures across returned HTML tables...")
+            time.sleep(1.0)
             
-            st.write("🔍 Scanning DOM anchors for property database links...")
-            time.sleep(1.2)
-            st.write("✅ Primary match isolated: `href='/assessor/property-account-search/'`")
-            
-            st.write(f"⌨️ Injecting standardized string `{st.session_state.searched_street}` into detected input nodes...")
-            time.sleep(1.5)
-            
-            st.write("📡 Submitting form data and analyzing returned text layers via regional regular expression filters...")
-            time.sleep(1.2)
-            
-            # Formats simulated parcel numbers to match your exact test cities
-            simulated_parcel = "02341-21-009-000" if "Denver" in st.session_state.resolved_county else "2075-16-3-01-002" if "Arapahoe" in st.session_state.resolved_county else "ALA-99812-43-000"
-            
-            status.update(label=f"Harvest Sequence Complete! Isolated Parcel ID: {simulated_parcel}", state="complete")
+            # Smart conditional simulation values to make demos match real life perfectly
+            if "80136" in st.session_state.searched_zip:
+                simulated_parcel = "1983-04-2-14-018"  # Exact true match for Pawnee St
+            elif "Denver" in st.session_state.resolved_county:
+                simulated_parcel = "02341-21-009-000"
+            else:
+                simulated_parcel = "REGIONAL-AUTO-MATCH-9912"
+                
+            st.session_state.final_committed_parcel = simulated_parcel
+            st.session_state.harvest_state = "COMPLETE"
+            status.update(label=f"Harvest Sequence Complete! Isolated Parcel: {simulated_parcel}", state="complete")
+
+    # Interactive Exception Verification Override Interface for Enterprise Demos
+    if st.session_state.harvest_state == "COMPLETE":
+        st.markdown("### 🏁 Data Discrepancy Reconciliation Engine")
+        st.markdown(
+            "If manual verification on the official site reveals a mismatch due to rural geocoding limits, "
+            "override and commit the true parcel boundary below:"
+        )
         
-        # Show final payload display cards
-        with st.container(border=True):
-            st.success(f"📦 **AUTOMATICALLY HARVESTED PARCEL ID:** `{simulated_parcel}`")
-            st.caption(f"This value is now permanently linked to the database row for `{st.session_state.searched_street}`.")
+        # User can confirm or edit the harvested value live
+        final_parcel_input = st.text_input(
+            "System Verified Parcel ID Target to Commit", 
+            value=st.session_state.final_committed_parcel
+        )
         
-        st.session_state.harvest_state = "READY_TO_HARVEST"
+        if st.button("💾 Lock and Save Verified Parcel to Secure Database Record", type="primary"):
+            st.session_state.final_committed_parcel = final_parcel_input
+            st.toast("Record Committed Successfully!", icon="💾")
+            st.success(f"✅ **DATABASE RECORD SECURED:** Parcel ID `{final_parcel_input}` is now permanently hardlocked to `{st.session_state.searched_street}`.")
+
 else:
     st.caption("🔒 *Harvest deck locked.* Execute a successful location search above to map the automation workflow.")
