@@ -34,7 +34,7 @@ MOCK_USPS_ZIP_MATRIX = {
     }
 }
 
-# --- CRITICAL FIX: INITIALIZE PERSISTENT MEMORY SLOTS ---
+# --- INITIALIZE PERSISTENT MEMORY SLOTS ---
 if "active_street" not in st.session_state:
     st.session_state.active_street = ""
 if "active_zip" not in st.session_state:
@@ -51,7 +51,7 @@ with input_col:
     st.header("📥 Manual Address Ingestion")
     st.markdown("Manually input an address string below to test the deterministic cross-reference engine.")
     
-    # Text inputs read from and write to the persistent session state directly
+    # Text inputs binded to parameters
     input_street = st.text_input("Street Address String", value=st.session_state.active_street, placeholder="e.g., 1560 Broadway")
     input_zip = st.text_input("5-Digit ZIP Code", value=st.session_state.active_zip, max_chars=5, placeholder="e.g., 80202")
     input_unit = st.text_input("Unit / Apt / Suite (Optional)", value=st.session_state.active_unit, placeholder="e.g., Suite 300")
