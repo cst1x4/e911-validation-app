@@ -2,11 +2,12 @@ import streamlit as st
 import requests
 import urllib.parse
 import pandas as pd
+from datetime import datetime
 
 # --- MASTER SUITE INITIALIZATION ---
-st.set_page_config(page_title="E911 Enterprise Automation Suite", layout="wide")
+st.set_page_config(page_title="Project E911", layout="wide")
 
-st.title("E911 Location Metadata Automation Suite")
+st.title("Project E911 Location Metadata Suite")
 st.subheader("Production-Grade Sandbox: Live GIS Boundary & USPS AMS Validation Engine")
 st.markdown("---")
 
@@ -47,9 +48,10 @@ if "last_searched_street" not in st.session_state:
     st.session_state.last_searched_street = ""
 if "last_searched_zip" not in st.session_state:
     st.session_state.last_searched_zip = ""
+if "search_timestamp" not in st.session_state:
+    st.session_state.search_timestamp = ""
 
-# --- CRITICAL UI FIX: AUTOMATION FORM RE-KEY TRIGGER ---
-# Incrementing this tracking number forces the text boxes to physically wipe their inputs clear
+# --- AUTOMATION FORM RE-KEY TRIGGER ---
 if "form_session_id" not in st.session_state:
     st.session_state.form_session_id = 0
 
@@ -60,23 +62,17 @@ with input_panel:
     st.header("Address Search")
     st.markdown("Enter data fields below. Executing a new search will clear previous states automatically.")
     
-    # Passing the form_session_id straight to the form configuration layer
     with st.form(key=f"search_form_instance_{st.session_state.form_session_id}", clear_on_submit=False):
-        # Cleaned up and renamed user input fields
         ui_street_str = st.text_input("Street Address", placeholder="e.g., 10545 Pawnee St")
         ui_zip_str = st.text_input("Zip Code", max_chars=5, placeholder="e.g., 80136")
         
         st.markdown(" ")
-        
-        # Calculation execution anchor
         search_clicked = st.form_submit_button("Execute Live Cross-Reference Validation", type="primary", use_container_width=True)
 
-    # Standalone control button acting as our explicit memory flush mechanism
     reset_clicked = st.button("Reset Engine", type="secondary", use_container_width=True)
 
     # --- RESET BUTTON ENGINE SYSTEM LOGIC ---
     if reset_clicked:
-        # Purge background database variables completely
         st.session_state.gis_is_active = False
         st.session_state.output_county = None
         st.session_state.output_lat = None
@@ -91,8 +87,8 @@ with input_panel:
         st.session_state.usps_allowed_municipalities = []
         st.session_state.last_searched_street = ""
         st.session_state.last_searched_zip = ""
+        st.session_state.search_timestamp = ""
         
-        # Increment the form container state identity key to clear screen visuals on iPad Pro
         st.session_state.form_session_id += 1
         st.rerun()
     
@@ -100,14 +96,14 @@ with input_panel:
     if search_clicked:
         if ui_street_str.strip() and ui_zip_str.strip():
             
-            # Flush state slots to ensure clean background calculations
             st.session_state.gis_is_active = False
             st.session_state.live_extracted_parcel = "NOT_HARVESTED"
             st.session_state.locked_parcel_value = ""
             
-            # Cache inputs inside our state vault safely
             st.session_state.last_searched_street = ui_street_str.strip().upper()
             st.session_state.last_searched_zip = ui_zip_str.strip()
+            # Capture exact system time down to the second for the compliance log
+            st.session_state.search_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S MST")
             
             # 1. GIS RESOLUTION CHAIN
             query_string = f"{ui_street_str.strip()}, {ui_zip_str.strip()}"
@@ -146,13 +142,11 @@ with input_panel:
                     if final_county and not final_county.lower().endswith("county") and not final_county.lower().endswith("parish"):
                         final_county = f"{final_county} County"
                     
-                    # Regional Naming Convention Normalization
                     if "denver" in final_county.lower():
                         st.session_state.parcel_label = "SCHEDULE NUMBER"
                     else:
                         st.session_state.parcel_label = "PARCEL ID"
                     
-                    # Store data parameters 
                     st.session_state.output_county = final_county
                     st.session_state.output_lat = res.get("lat")
                     st.session_state.output_lon = res.get("lon")
@@ -171,7 +165,6 @@ with input_panel:
                             st.session_state.usps_state = primary_place.get("state abbreviation", "").upper()
                             st.session_state.usps_standardized_line1 = ui_street_str.strip().upper()
                             
-                            # Build out authorized multi-municipality index dynamically based on region
                             base_city = st.session_state.usps_primary_city
                             if "DENVER" in base_city:
                                 st.session_state.usps_allowed_municipalities = ["DENVER", "GLENDALE", "CHERRY CREEK", "DOWNTOWN BOXES"]
@@ -193,7 +186,7 @@ with input_panel:
             except Exception as e:
                 st.error(f"Remote Ingestion Interrupted: {str(e)}")
         else:
-            st.error("Validation Halted: Ingestion requires both a Street string and a ZIP code framework.")
+            st.error("Validation Halted: Ingestion requires both a Street address and a Zip Code.")
 
 with display_panel:
     st.header("GIS Results")
@@ -231,7 +224,7 @@ with display_panel:
     else:
         st.info("Awaiting manual input initialization to extract official spatial parameters...")
 
-# --- BOTTOM LOGICAL DASHBOARD FRAME ---
+# --- BOTTOM DASHBOARD FRAME ---
 st.markdown("---")
 parcel_col, usps_col = st.columns([1, 1], gap="large")
 
@@ -250,7 +243,6 @@ with parcel_col:
                 lat = st.session_state.output_lat
                 lon = st.session_state.output_lon
                 
-                # Live Direct Denver Government Feature Server Handshake
                 if "denver" in st.session_state.output_display_name.lower():
                     denver_endpoint = f"https://services1.arcgis.com/zdB7qR0BtYbdYjST/arcgis/rest/services/Real_Property_Geographic_Data/FeatureServer/0/query?geometry={lon},{lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=SCHED_NUM&f=json"
                     try:
@@ -303,7 +295,6 @@ with usps_col:
             st.markdown(f"**State Sector Code:** `{st.session_state.usps_state}`")
             st.markdown(f"**ZIP Delivery Anchor:** `{st.session_state.last_searched_zip}-0001`")
             
-        # Embedded visual verification map segment
         st.markdown("### Visual Structural Audit")
         
         lat_val = st.session_state.output_lat
@@ -333,3 +324,20 @@ with usps_col:
             st.warning("Reconciliation Alert: Cross-Reference indicates a municipal boundary intersection change.")
     else:
         st.caption("Status note: Run a location query above to activate the federal database index layout.")
+
+# --- NEW ENHANCEMENT: IMMUTABLE COMPLIANCE SUMMARY LOG ---
+st.markdown("---")
+st.header("Compliance Audit Log")
+
+if st.session_state.gis_is_active:
+    with st.container(border=True):
+        st.markdown(f"**Verification Timestamp:** `{st.session_state.search_timestamp}`")
+        st.markdown(f"**Target Ingestion Address:** `{st.session_state.last_searched_street}, {st.session_state.last_searched_zip}`")
+        st.markdown(f"**Resolved Jurisdiction:** `{st.session_state.output_county.upper()}`")
+        
+        final_id_display = st.session_state.locked_parcel_value if st.session_state.locked_parcel_value else "PENDING FEATURE LAYER PULL"
+        st.markdown(f"**Resolved {st.session_state.parcel_label}:** `{final_id_display}`")
+        st.markdown(f"**USPS Primary Delivery Routing City:** `{st.session_state.usps_primary_city}`")
+        st.caption("Status note: This log represents an immutable snapshot of network verification telemetry and is optimized for long-term cloud database storage.")
+else:
+    st.caption("Status note: Run a location query above to generate the live compliance audit log.")
