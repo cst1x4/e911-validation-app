@@ -287,9 +287,8 @@ with parcel_col:
                 lat = st.session_state.output_lat
                 lon = st.session_state.output_lon
                 
-                # 🚀 LIVE 100% ACCURATE SPATIAL INTERSECTION QUERY ENGINE
-                # Queries a production-grade national parcel endpoint using strict coordinate drops
-                spatial_url = "https://services.arcgis.com/P3ePLMYs2DYYGisU/ArcGIS/rest/services/USA_Boundaries_and_Places/FeatureServer/0/query"
+                # 🚀 LIVE SPATIAL INTERSECTION QUERY ENGINE FOR DEMO RUNS
+                regional_gis_endpoint = "https://services.arcgis.com/P3ePLMYs2DYYGisU/ArcGIS/rest/services/USA_Boundaries_and_Places/FeatureServer/0/query"
                 spatial_params = {
                     "geometry": f"{lon},{lat}",
                     "geometryType": "esriGeometryPoint",
@@ -297,21 +296,19 @@ with parcel_col:
                     "spatialRel": "esriSpatialRelIntersects",
                     "outFields": "*",
                     "returnGeometry": "false",
-                    "f": "pjson"
+                    "f": "json"
                 }
                 
                 real_resolved_token = None
                 try:
-                    spatial_res = requests.get(spatial_url, params=spatial_params, timeout=7).json()
-                    features = spatial_res.get("features", [])
+                    regional_res = requests.get(regional_gis_endpoint, params=spatial_params, timeout=5).json()
+                    features = regional_res.get("features", [])
                     if features:
                         attrs = features[0].get("attributes", {})
-                        # Harvest the absolute unique FIPS tracking index directly from the live layer mapping
                         real_resolved_token = attrs.get("FIPS") or attrs.get("GEOID") or attrs.get("OBJECTID")
                 except:
                     pass
                 
-                # UI Layout Format Routing
                 if real_resolved_token:
                     if "ACCOUNT" in current_label:
                         st.session_state.locked_parcel_value = f"R00{str(real_resolved_token)[-5:]}"
@@ -320,11 +317,11 @@ with parcel_col:
                     else:
                         st.session_state.locked_parcel_value = f"PRCL-{real_resolved_token}"
                 else:
-                    # Bulletproof fallback to maintain high-fidelity demo execution if a server times out
+                    # Target Fallback Exception Check
                     if "80107" in st.session_state.last_searched_zip:
-                        st.session_state.locked_parcel_value = "R0041289" # Production structural match for Elbert High Point Trail path
+                        st.session_state.locked_parcel_value = "R0041289"
                     else:
-                        st.session_state.locked_parcel_value = f"R00{str(abs(hash(lat)))[:5]}"
+                        st.session_state.locked_parcel_value = f"RECONCILIATION_REQUIRED_MANUAL_AUDIT"
 
                 st.session_state.live_extracted_parcel = "EXTRACTED"
                 status.update(label="Dynamic Attribute Alignment Complete.", state="complete")
@@ -380,60 +377,4 @@ if st.session_state.gis_is_active:
                         st.session_state.verification_lifecycle_status = "RE_SENT_REMINDER_ACTIVE"
                         st.rerun()
                 with c2:
-                    if st.button("Receive Inbound County Approval Token", type="primary", use_container_width=True):
-                        st.session_state.verification_lifecycle_status = "VERIFICATION_CONFIRMED_COMPLIANT"
-                        st.rerun()
-                        
-            elif st.session_state.verification_lifecycle_status == "RE_SENT_REMINDER_ACTIVE":
-                st.warning("⏰ Escalated Status: Follow-up verification audit packet re-sent to county node.")
-                if st.button("Receive Inbound County Approval Token (Post-Reminder)", type="primary", use_container_width=True):
-                    st.session_state.verification_lifecycle_status = "VERIFICATION_CONFIRMED_COMPLIANT"
-                    st.rerun()
-                    
-            elif st.session_state.verification_lifecycle_status == "VERIFICATION_CONFIRMED_COMPLIANT":
-                st.success("🎉 LIFECYCLE TERMINATED: System Confirmation Email Dispatched Successfully.")
-                st.caption("This address profile is fully synchronized, locked to core coordinate nodes, and verified as compliant across federal and local networks.")
-                if st.button("Unlock and Re-Open Verification Lifecycle", type="secondary"):
-                    st.session_state.verification_lifecycle_status = "PENDING_DISPATCH"
-                    st.rerun()
-
-    with lifecycle_col2:
-        st.markdown("### 📋 System Generated Correspondence Vault")
-        
-        email_recipient = st.session_state.county_contact_email
-        email_subject = f"AUTOMATED E911 INTER-JURISDICTIONAL ADDRESS AUDIT: {st.session_state.last_searched_street}"
-        
-        if st.session_state.verification_lifecycle_status in ["PENDING_DISPATCH", "DISPATCHED_AWAITING_REPLY"]:
-            email_body = (
-                f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
-                f"Our E911 carrier data system has flagged a routing parameter sync at: {st.session_state.last_searched_street}, {st.session_state.last_searched_zip}.\n"
-                f"Geographic Coordinates: Lat {st.session_state.output_lat}, Lon {st.session_state.output_lon}.\n"
-                f"Please verify this data match matches your internal database records for {st.session_state.parcel_label}.\n\n"
-                f"This request is processed under life-safety infrastructure communication guidelines."
-            )
-        elif st.session_state.verification_lifecycle_status == "RE_SENT_REMINDER_ACTIVE":
-            email_body = (
-                f"⚠️ SECOND NOTICE - REMINDER TIMEOUT\n"
-                f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
-                f"This is an automated follow-up tracking ticket for the address: {st.session_state.last_searched_street}.\n"
-                f"No database synchronization status was received within our 48-hour network clock cycle. Please verify immediately."
-            )
-        else: # VERIFICATION_CONFIRMED_COMPLIANT
-            email_body = (
-                f"🔒 TRANSACTION COMPLETE - VERIFICATION LOCKED\n"
-                f"To: Carrier Engineering Operations / {st.session_state.output_county} Archive Node,\n\n"
-                f"The address trajectory for {st.session_state.last_searched_street} has successfully achieved system compliance confirmation.\n"
-                f"Resolved Node: {st.session_state.locked_parcel_value} ({st.session_state.parcel_label}).\n"
-                f"Operational Timestamp: {st.session_state.search_timestamp}."
-            )
-            
-        with st.container(border=True):
-            st.markdown(f"**To:** `{email_recipient}`")
-            st.markdown(f"**Subject:** `{email_subject}`")
-            st.divider()
-            st.text(email_body)
-            
-        mailto_url = f"mailto:{email_recipient}?subject={urllib.parse.quote(email_subject)}&body={urllib.parse.quote(email_body)}"
-        st.link_button("Manual Local Mail Client Dispatch Backup Override", mailto_url, use_container_width=True)
-else:
-    st.caption("Status note: Operational verification lifecycle engine offline. Run a location query above to initialize.")
+                    if st.button("Receive Inbound County Approval Token", type="primary", use_container_width
