@@ -309,13 +309,13 @@ st.header("Automated Address Verification")
 
 if st.session_state.gis_is_active:
     lifecycle_col1, lifecycle_col2 = st.columns([1, 1], gap="large")
+    
     with lifecycle_col1:
         with st.container(border=True):
             st.markdown("### County Verification Tracking")
             st.markdown(f"**Target Authority:** `{st.session_state.output_county.upper()}`")
             st.markdown(f"**Target Dispatch Destination:** `{st.session_state.county_contact_email}`")
             st.markdown(f"**Current Lifecycle Audit State:** `[{st.session_state.verification_lifecycle_status}]`")
-            st.markdown(" ") # Spacer for alignment balance
             
             if st.session_state.verification_lifecycle_status == "PENDING_DISPATCH":
                 if st.button("Simulate Auto-Dispatch of Verification Protocol", type="primary", use_container_width=True):
@@ -344,41 +344,41 @@ if st.session_state.gis_is_active:
                     st.rerun()
 
     with lifecycle_col2:
-        st.markdown("### Verification Email Request")
-        email_recipient = st.session_state.county_contact_email
-        email_subject = f"AUTOMATED E911 INTER-JURISDICTIONAL ADDRESS AUDIT: {st.session_state.last_searched_street}"
-        
-        if st.session_state.verification_lifecycle_status in ["PENDING_DISPATCH", "DISPATCHED_AWAITING_REPLY"]:
-            email_body = (
-                f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
-                f"Our E911 carrier data system has flagged a routing parameter sync at: {st.session_state.last_searched_street}, {st.session_state.last_searched_zip}.\n"
-                f"Geographic Coordinates: Lat {st.session_state.output_lat}, Lon {st.session_state.output_lon}.\n"
-                f"Please verify this data match matches your internal database records for {st.session_state.parcel_label}.\n\n"
-                f"This request is processed under life-safety infrastructure communication guidelines."
-            )
-        elif st.session_state.verification_lifecycle_status == "RE_SENT_REMINDER_ACTIVE":
-            email_body = (
-                f"SECOND NOTICE - REMINDER TIMEOUT\n"
-                f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
-                f"This is an automated follow-up tracking ticket for the address: {st.session_state.last_searched_street}.\n"
-                f"No database synchronization status was received within our 48-hour network clock cycle. Please verify immediately."
-            )
-        else:
-            email_body = (
-                f"TRANSACTION COMPLETE - VERIFICATION LOCKED\n"
-                f"To: Carrier Engineering Operations / {st.session_state.output_county} Archive Node,\n\n"
-                f"The address trajectory for {st.session_state.last_searched_street} has successfully achieved system compliance confirmation.\n"
-                f"Resolved Node: {st.session_state.locked_parcel_value} ({st.session_state.parcel_label}).\n"
-                f"Operational Timestamp: {st.session_state.search_timestamp}."
-            )
-            
         with st.container(border=True):
+            st.markdown("### Verification Email Request")
+            email_recipient = st.session_state.county_contact_email
+            email_subject = f"AUTOMATED E911 INTER-JURISDICTIONAL ADDRESS AUDIT: {st.session_state.last_searched_street}"
+            
+            if st.session_state.verification_lifecycle_status in ["PENDING_DISPATCH", "DISPATCHED_AWAITING_REPLY"]:
+                email_body = (
+                    f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
+                    f"Our E911 carrier data system has flagged a routing parameter sync at: {st.session_state.last_searched_street}, {st.session_state.last_searched_zip}.\n"
+                    f"Geographic Coordinates: Lat {st.session_state.output_lat}, Lon {st.session_state.output_lon}.\n"
+                    f"Please verify this data match matches your internal database records for {st.session_state.parcel_label}.\n\n"
+                    f"This request is processed under life-safety infrastructure communication guidelines."
+                )
+            elif st.session_state.verification_lifecycle_status == "RE_SENT_REMINDER_ACTIVE":
+                email_body = (
+                    f"SECOND NOTICE - REMINDER TIMEOUT\n"
+                    f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
+                    f"This is an automated follow-up tracking ticket for the address: {st.session_state.last_searched_street}.\n"
+                    f"No database synchronization status was received within our 48-hour network clock cycle. Please verify immediately."
+                )
+            else:
+                email_body = (
+                    f"TRANSACTION COMPLETE - VERIFICATION LOCKED\n"
+                    f"To: Carrier Engineering Operations / {st.session_state.output_county} Archive Node,\n\n"
+                    f"The address trajectory for {st.session_state.last_searched_street} has successfully achieved system compliance confirmation.\n"
+                    f"Resolved Node: {st.session_value if hasattr(st.session_state, 'session_value') else st.session_state.locked_parcel_value} ({st.session_state.parcel_label}).\n"
+                    f"Operational Timestamp: {st.session_state.search_timestamp}."
+                )
+                
             st.markdown(f"**To:** `{email_recipient}`")
             st.markdown(f"**Subject:** `{email_subject}`")
             st.divider()
             st.text(email_body)
-        
-        st.link_button("Manual Local Mail Client Dispatch Backup Override", f"mailto:{email_recipient}?subject={urllib.parse.quote(email_subject)}&body={urllib.parse.quote(email_body)}", use_container_width=True)
+            
+            st.link_button("Manual Local Mail Client Dispatch Backup Override", f"mailto:{email_recipient}?subject={urllib.parse.quote(email_subject)}&body={urllib.parse.quote(email_body)}", use_container_width=True)
 
     # --- TIMESTAMPED SUMMARY AND AUDIT LOG RETENTION MODULE ---
     st.markdown("---")
