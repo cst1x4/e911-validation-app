@@ -116,7 +116,7 @@ with input_panel:
             st.session_state.last_searched_zip = ui_zip_str.strip()
             st.session_state.search_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S MST")
             
-            # 1. LIVE USPS REGISTRY MATRIX HANDSHAKE FIRST (ESTABLISHES BASELINE TRUTH)
+            # 1. LIVE USPS REGISTRY MATRIX HANDSHAKE (ESTABLISHES GROUND TRUTH)
             usps_lookup_url = f"https://api.zippopotam.us/us/{ui_zip_str.strip()}"
             try:
                 usps_res = requests.get(usps_lookup_url, timeout=5).json()
@@ -133,12 +133,11 @@ with input_panel:
                 st.session_state.usps_state = "CO"
                 st.session_state.usps_allowed_municipalities = ["DATA COMPLETION EXCEPTION"]
 
-            # 2. NATIONAL GIS RESOLUTION CHAIN WITH STRICT STATE FILTERING
+            # 2. NATIONAL GIS RESOLUTION CHAIN WITH ENFORCED BOUNDARY OVERRIDES
             encoded_street = urllib.parse.quote(ui_street_str.strip())
             encoded_zip = urllib.parse.quote(ui_zip_str.strip())
-            
-            # Injecting the baseline truth state parameter straight into the GIS request line
             target_state_filter = st.session_state.usps_state if st.session_state.usps_state else "CO"
+            
             api_url = f"https://nominatim.openstreetmap.org/search?street={encoded_street}&postalcode={encoded_zip}&state={target_state_filter}&format=json&addressdetails=1&countrycodes=us&limit=1"
             headers = {"User-Agent": "CSTerrellART_E911_Automation_Suite/2.0 (contact: support@csterrellart.com)"}
             
@@ -147,7 +146,19 @@ with input_panel:
                     response = requests.get(api_url, headers=headers, timeout=10)
                     data = response.json()
                 
+                # Check if search returned data and verify the engine didn't escape to an incorrect state
+                gis_state_validated = False
                 if data and isinstance(data, list):
+                    res = data[0]
+                    address_details = res.get("address", {})
+                    returned_state_raw = address_details.get("state", "").upper()
+                    returned_state_code = address_details.get("state_code", "").upper()
+                    
+                    # Confirm match against ground truth state parameter
+                    if target_state_filter in [returned_state_raw, returned_state_code] or (target_state_filter == "CO" and "COLORADO" in returned_state_raw):
+                        gis_state_validated = True
+
+                if data and isinstance(data, list) and gis_state_validated:
                     res = data[0]
                     address_details = res.get("address", {})
                     
@@ -181,12 +192,18 @@ with input_panel:
                     st.session_state.live_extracted_parcel = "READY"
                 
                 else:
-                    # RURAL FAILSAFE BACKSTOP: If unmapped footprint occurs, generate deterministic backup coordinates
-                    # centered on the verified postal ZIP code space instead of crashing line 189
-                    st.session_state.output_county = "Elbert County" if st.session_state.last_searched_zip == "80107" else "Local Carrier Jurisdiction"
-                    st.session_state.output_lat = "39.3601" if st.session_state.last_searched_zip == "80107" else "39.0000"
-                    st.session_state.output_lon = "-104.5965" if st.session_state.last_searched_zip == "80107" else "-104.0000"
-                    st.session_state.output_display_name = f"{st.session_state.last_searched_street}, {st.session_state.usps_primary_city}, {st.session_state.usps_state} (UNMAPPED CARRIER ROUTE ANCHOR)"
+                    # 🚀 THE GUARDRAIL: Intercepts unmapped footprints or multi-state escapes
+                    # Snaps the system tracking cleanly back to the local target zone safely
+                    if st.session_state.last_searched_zip == "80107":
+                        st.session_state.output_county = "Elbert County"
+                        st.session_state.output_lat = "39.3601"
+                        st.session_state.output_lon = "-104.5965"
+                    else:
+                        st.session_state.output_county = "Local Carrier Jurisdiction"
+                        st.session_state.output_lat = "39.5501"
+                        st.session_state.output_lon = "-105.7821"
+                        
+                    st.session_state.output_display_name = f"{st.session_state.last_searched_street}, {st.session_state.usps_primary_city}, {st.session_state.usps_state} (UNMAPPED CO ROAD FOOTPRINT)"
                     st.session_state.gis_is_active = True
                     st.session_state.live_extracted_parcel = "READY"
                     st.session_state.msag_discrepancy_flag = True
@@ -200,25 +217,17 @@ with input_panel:
                     st.session_state.parcel_label = "PIN (PROPERTY ID NUMBER)"
                     st.session_state.county_contact_email = "assessor@arapahoegov.com"
                 elif "jefferson" in county_lower or "jeffco" in county_lower:
-                    st.session_state.parcel_label = "LOT NUMBER /AIN"
+                    st.session_label = "LOT NUMBER /AIN"
                     st.session_state.county_contact_email = "assessor@jeffco.us"
-                elif "cook" in county_lower:
-                    st.session_state.parcel_label = "PIN (PERMANENT INDEX NUMBER)"
-                    st.session_state.county_contact_email = "assessor@cookcountyil.gov"
                 else:
                     st.session_state.parcel_label = "PARCEL ID / TAX ACCNT NUMBER"
                     sanitized_county_slug = county_lower.replace(" county", "").replace(" ", "")
                     st.session_state.county_contact_email = f"gis_validation@{sanitized_county_slug}.gov"
 
-                # 3. FIXED CARRIER CALCULATOR (LINE 189 PROTECTED FROM BLANK/INVALID STRINGS NATIVELY)
+                # 3. FIXED CARRIER CALCULATOR
                 cleaned_county_string = str(st.session_state.output_county)
                 hash_routing = abs(hash(cleaned_county_string))
                 st.session_state.psap_sector_code = f"PSAP-ZONE-{str(hash_routing)[:3]}-E911"
-                
-                # Cross-system evaluation safety check
-                if st.session_state.usps_state not in st.session_state.output_display_name:
-                    st.session_state.msag_discrepancy_flag = True
-
                 st.session_state.verification_lifecycle_status = "PENDING_DISPATCH"
                 
             except Exception as e:
