@@ -309,10 +309,13 @@ with usps_col:
             st.markdown(f"**USPS Standardized Text Profile:** `{st.session_state.usps_standardized_line1}, {st.session_state.usps_primary_city}, {st.session_state.usps_state}`")
             st.markdown(f"**ZIP Delivery Anchor Network:** `{st.session_state.last_searched_zip}-0001`")
             
-        lat_val = st.session_state.output_lat
-        lon_val = st.session_state.output_lon
+        # 🛠️ CARRIER-GRADE UPGRADE: Feed the raw string profile into Google Maps directly
+        # This forces the iframe to use Google's superior address lookup index instead of flat, empty coordinates
+        map_query_string = f"{st.session_state.usps_standardized_line1}, {st.session_state.usps_primary_city}, {st.session_state.usps_state} {st.session_state.last_searched_zip}"
+        encoded_map_query = urllib.parse.quote(map_query_string)
+        
         st.markdown(
-            f'<iframe width="100%" height="160" frameborder="0" src="https://maps.google.com/maps?q={lat_val},{lon_val}&z=15&output=embed"></iframe>',
+            f'<iframe width="100%" height="160" frameborder="0" src="https://maps.google.com/maps?q={encoded_map_query}&z=16&output=embed"></iframe>',
             unsafe_allow_html=True
         )
     else:
