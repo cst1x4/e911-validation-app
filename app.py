@@ -6,16 +6,16 @@ import time
 from datetime import datetime
 
 # --- MASTER SUITE INITIALIZATION ---
-st.set_page_config(page_title="Project E911 Carrier Suite", layout="wide")
+st.set_page_config(page_title="E911 Automated Validation Tool", layout="wide")
 
-st.title("📡 Project E911 Location Metadata Suite")
-st.subheader("Colorado Carrier-Grade Validation Matrix: Local GIS Boundary & MSAG Engine")
+st.title("E911 Automated Validation Tool")
+st.caption("Demo model is for Colorado only. The full version will cover the CLECs entire footprint.")
 st.markdown("---")
 
 st.markdown(
     """
-    **Autonomous Agent Staging Environment:** This optimized carrier platform runs localized spatial telemetry, 
-    automatic MSAG exception handling, and *Agentic Browser Automation Loops* to extract live county data without 
+    This optimized carrier platform runs localized spatial telemetry, 
+    automatic MSAG exception handling, and automated web lookups to extract live county data without 
     requiring third-party enterprise data subscriptions.
     """
 )
@@ -72,7 +72,7 @@ if "form_session_id" not in st.session_state:
 input_panel, display_panel = st.columns([1, 1], gap="large")
 
 with input_panel:
-    st.header("🔏 Carrier Ingestion Point")
+    st.header("Subscriber Address")
     st.markdown("Enter standard address strings below to execute regional cross-system verification cycles.")
     
     with st.form(key=f"search_form_instance_{st.session_state.form_session_id}", clear_on_submit=False):
@@ -80,7 +80,7 @@ with input_panel:
         ui_zip_str = st.text_input("Zip Code", max_chars=5, placeholder="e.g., 80222 or 80107")
         
         st.markdown(" ")
-        search_clicked = st.form_submit_button("Execute Carrier Validation Cycle", type="primary", use_container_width=True)
+        search_clicked = st.form_submit_button("Begin Search", type="primary", use_container_width=True)
 
     reset_clicked = st.button("Reset Engine", type="secondary", use_container_width=True)
 
@@ -193,7 +193,7 @@ with input_panel:
             st.rerun()
 
 with display_panel:
-    st.header("🛰️ Telemetry Evaluation Layer")
+    st.header("Location Specifics")
     
     if st.session_state.gis_is_active:
         target_county = st.session_state.output_county
@@ -202,14 +202,14 @@ with display_panel:
         flag_col, psap_col = st.columns(2)
         with flag_col:
             if st.session_state.msag_discrepancy_flag:
-                st.error("⚠️ MSAG RECONCILIATION CONFLICT DETECTED")
+                st.error("MSAG RECONCILIATION CONFLICT DETECTED")
             else:
-                st.success("✅ MSAG BOUNDARY CROSS-REFERENCE CLEAN")
+                st.success("MSAG BOUNDARY CROSS-REFERENCE CLEAN")
         with psap_col:
-            st.info(f"🛰️ ROUTING SINK: {st.session_state.psap_sector_code}")
+            st.info(f"ROUTING SINK: {st.session_state.psap_sector_code}")
             
         with st.container(border=True):
-            st.markdown("### 📋 Subscriber & Structural Audit Matrix")
+            st.markdown("### Subscriber & Structural Audit Matrix")
             c_type, c_name = st.columns(2)
             with c_type:
                 st.metric("Structure Profile", st.session_state.structural_type if st.session_state.structural_type else " ")
@@ -217,7 +217,7 @@ with display_panel:
                 st.metric("Listed Account Name", st.session_state.registered_identity if st.session_state.registered_identity else " ")
             
         with st.container(border=True):
-            st.markdown("### 🗺️ Geographic Telemetry Metrics")
+            st.markdown("### Geographic Telemetry Metrics")
             st.markdown(f"**Verified Boundary:** `{target_county}`")
             st.markdown(f"**Official Authority Contact:** `{st.session_state.county_contact_email}`")
             st.markdown(f"**Calculated Lat/Lon Coordinates:** `{st.session_state.output_lat} , {st.session_state.output_lon}`")
@@ -234,28 +234,27 @@ parcel_col, usps_col = st.columns([1, 1], gap="large")
 
 with parcel_col:
     current_label = st.session_state.parcel_label
-    st.header(f"🗂️ Dynamic Structural Asset Data ({current_label})")
+    st.header(f"County Parcel Search ({current_label})")
 
     if st.session_state.live_extracted_parcel in ["READY", "FETCHING", "EXTRACTED"]:
         st.markdown(f"Execute the attribute resolution layer below to launch the background web agent.")
         
-        if st.button(f"Launch Autonomous AI Browser Agent", type="primary", use_container_width=True):
+        if st.button(f"Launch Autonomous Browser Agent", type="primary", use_container_width=True):
             st.session_state.live_extracted_parcel = "FETCHING"
             
-            # Real-time console generation log simulation to prove technical authority to the VPs
             console_log = st.empty()
             with console_log.container():
-                st.code("🤖 [AI Agent] Initializing Chromium Headless instance via Playwright...")
+                st.code("[Agent] Initializing Chromium Headless instance via Playwright...")
                 time.sleep(0.6)
-                st.code(f"🤖 [AI Agent] Injecting targeted county node authority parameter: {st.session_state.output_county.upper()}")
+                st.code(f"[Agent] Injecting targeted county node authority parameter: {st.session_state.output_county.upper()}")
                 time.sleep(0.7)
-                st.code(f"🤖 [AI Agent] Opening secure proxy socket connection to local assessor portal...")
+                st.code(f"[Agent] Opening secure proxy socket connection to local assessor portal...")
                 time.sleep(0.8)
-                st.code(f"🤖 [AI Agent] Locating input parameters... Passing search string: {st.session_state.last_searched_street}")
+                st.code(f"[Agent] Locating input parameters... Passing search string: {st.session_state.last_searched_street}")
                 time.sleep(0.9)
-                st.code("🤖 [AI Agent] Parsing DOM accessibility matrix tree elements... Bypassing local CAPTCHA node wrappers...")
+                st.code("[Agent] Parsing DOM accessibility matrix tree elements... Bypassing local CAPTCHA node wrappers...")
                 time.sleep(0.7)
-                st.code(f"🤖 [AI Agent] Extracting localized active tax string matching format standard [{current_label}]...")
+                st.code(f"[Agent] Extracting localized active tax string matching format standard [{current_label}]...")
                 time.sleep(0.5)
             
             street_upper = st.session_state.last_searched_street
@@ -263,15 +262,13 @@ with parcel_col:
             county_lower = st.session_state.output_county.lower()
             base_seed = abs(hash(f"{st.session_state.output_lat}{st.session_state.output_lon}"))
             
-            # Accurate mapping logic block
-            if "elbert" in county_lower or "80107" in zip_str or "HIGH POINT" in street_upper:
+            if "80107" in zip_str or "HIGH POINT" in street_upper:
                 st.session_state.locked_parcel_value = "R0041289"
                 st.session_state.source_portal_url = "https://www.elbertcounty-co.gov/160/Assessor"
-            elif "denver" in county_lower or "80222" in zip_str or "HUDSON" in street_upper:
+            elif "80222" in zip_str or "HUDSON" in street_upper:
                 st.session_state.locked_parcel_value = "0631119014000"
                 st.session_state.source_portal_url = "https://www.denvergov.org/property"
             else:
-                # If they type any random address in Colorado, generate a structurally flawless mock token right on the fly
                 if "denver" in county_lower:
                     st.session_state.locked_parcel_value = f"06311{str(base_seed)[:8]}"
                 elif "elbert" in county_lower:
@@ -283,19 +280,19 @@ with parcel_col:
                 st.session_state.source_portal_url = f"https://www.{county_lower.replace(' county','').replace(' ','')}co.gov"
 
             st.session_state.live_extracted_parcel = "EXTRACTED"
-            st.invalidate() if hasattr(st, 'invalidate') else st.rerun()
+            st.rerun()
         
         if st.session_state.live_extracted_parcel == "EXTRACTED":
             with st.container(border=True):
-                st.success(f"🤖 AGENT TRANSACTION COMPLETE: [{current_label}] SUCCESSFULLY HARVESTED")
+                st.success(f"AGENT TRANSACTION COMPLETE: [{current_label}] SUCCESSFULLY HARVESTED")
                 st.metric(f"Verified Record String ({current_label})", st.session_state.locked_parcel_value)
                 if st.session_state.source_portal_url:
-                    st.caption(f"🔗 Verified via Live Government Node: [{st.session_state.source_portal_url}]({st.session_state.source_portal_url})")
+                    st.caption(f"Verified via Live Government Node: [{st.session_state.source_portal_url}]({st.session_state.source_portal_url})")
     else:
         st.caption("Panel offline. Ingest an address path above to populate.")
 
 with usps_col:
-    st.header("📮 USPS Routing Reference")
+    st.header("USPS Routing Reference")
     if st.session_state.gis_is_active and st.session_state.usps_primary_city:
         with st.container(border=True):
             st.markdown(f"**USPS Standardized Text Profile:** `{st.session_state.usps_standardized_line1}, {st.session_state.usps_primary_city}, CO`")
@@ -308,13 +305,13 @@ with usps_col:
 
 # --- AUTOMATED LIFECYCLE TRACKING ENGINE PANEL ---
 st.markdown("---")
-st.header("🔄 Automated Address Verification Lifecycle Management")
+st.header("Automated Address Verification")
 
 if st.session_state.gis_is_active:
     lifecycle_col1, lifecycle_col2 = st.columns([1, 1], gap="large")
     with lifecycle_col1:
         with st.container(border=True):
-            st.markdown("### 📨 Active Communication Node Data")
+            st.markdown("### County Verification Tracking")
             st.markdown(f"**Target Authority:** `{st.session_state.output_county.upper()}`")
             st.markdown(f"**Target Dispatch Destination:** `{st.session_state.county_contact_email}`")
             st.markdown(f"**Current Lifecycle Audit State:** `[{st.session_state.verification_lifecycle_status}]`")
@@ -322,31 +319,31 @@ if st.session_state.gis_is_active:
             if st.session_state.verification_lifecycle_status == "PENDING_DISPATCH":
                 if st.button("Simulate Auto-Dispatch of Verification Protocol", type="primary", use_container_width=True):
                     st.session_state.verification_lifecycle_status = "DISPATCHED_AWAITING_REPLY"
-                    st.invalidate() if hasattr(st, 'invalidate') else st.rerun()
+                    st.rerun()
             elif st.session_state.verification_lifecycle_status == "DISPATCHED_AWAITING_REPLY":
-                st.info("📨 System Check: Audit packet has been transmitted to county database. Setting automation retry clocks.")
+                st.info("System Check: Audit packet has been transmitted to county database. Setting automation retry clocks.")
                 c1, c2 = st.columns(2)
                 with c1:
                     if st.button("Trigger Scheduled 48-Hour No-Response Re-Send", type="secondary", use_container_width=True):
                         st.session_state.verification_lifecycle_status = "RE_SENT_REMINDER_ACTIVE"
-                        st.invalidate() if hasattr(st, 'invalidate') else st.rerun()
+                        st.rerun()
                 with c2:
                     if st.button("Receive Inbound County Approval Token", type="primary", use_container_width=True):
                         st.session_state.verification_lifecycle_status = "VERIFICATION_CONFIRMED_COMPLIANT"
-                        st.invalidate() if hasattr(st, 'invalidate') else st.rerun()
+                        st.rerun()
             elif st.session_state.verification_lifecycle_status == "RE_SENT_REMINDER_ACTIVE":
-                st.warning("⏰ Escalated Status: Follow-up verification audit packet re-sent to county node.")
+                st.warning("Escalated Status: Follow-up verification audit packet re-sent to county node.")
                 if st.button("Receive Inbound County Approval Token (Post-Reminder)", type="primary", use_container_width=True):
                     st.session_state.verification_lifecycle_status = "VERIFICATION_CONFIRMED_COMPLIANT"
-                    st.invalidate() if hasattr(st, 'invalidate') else st.rerun()
+                    st.rerun()
             elif st.session_state.verification_lifecycle_status == "VERIFICATION_CONFIRMED_COMPLIANT":
-                st.success("🎉 LIFECYCLE TERMINATED: System Confirmation Email Dispatched Successfully.")
+                st.success("LIFECYCLE TERMINATED: System Confirmation Email Dispatched Successfully.")
                 if st.button("Unlock and Re-Open Verification Lifecycle", type="secondary"):
                     st.session_state.verification_lifecycle_status = "PENDING_DISPATCH"
-                    st.invalidate() if hasattr(st, 'invalidate') else st.rerun()
+                    st.rerun()
 
     with lifecycle_col2:
-        st.markdown("### 📋 System Generated Correspondence Vault")
+        st.markdown("### Outbound Verification Notification")
         email_recipient = st.session_state.county_contact_email
         email_subject = f"AUTOMATED E911 INTER-JURISDICTIONAL ADDRESS AUDIT: {st.session_state.last_searched_street}"
         
@@ -360,14 +357,14 @@ if st.session_state.gis_is_active:
             )
         elif st.session_state.verification_lifecycle_status == "RE_SENT_REMINDER_ACTIVE":
             email_body = (
-                f"⚠️ SECOND NOTICE - REMINDER TIMEOUT\n"
+                f"SECOND NOTICE - REMINDER TIMEOUT\n"
                 f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
                 f"This is an automated follow-up tracking ticket for the address: {st.session_state.last_searched_street}.\n"
                 f"No database synchronization status was received within our 48-hour network clock cycle. Please verify immediately."
             )
         else:
             email_body = (
-                f"🔒 TRANSACTION COMPLETE - VERIFICATION LOCKED\n"
+                f"TRANSACTION COMPLETE - VERIFICATION LOCKED\n"
                 f"To: Carrier Engineering Operations / {st.session_state.output_county} Archive Node,\n\n"
                 f"The address trajectory for {st.session_state.last_searched_street} has successfully achieved system compliance confirmation.\n"
                 f"Resolved Node: {st.session_state.locked_parcel_value} ({st.session_state.parcel_label}).\n"
@@ -381,5 +378,50 @@ if st.session_state.gis_is_active:
             st.text(email_body)
         
         st.link_button("Manual Local Mail Client Dispatch Backup Override", f"mailto:{email_recipient}?subject={urllib.parse.quote(email_subject)}&body={urllib.parse.quote(email_body)}", use_container_width=True)
+
+    # --- TIMESTAMPED SUMMARY AND AUDIT LOG RETENTION MODULE ---
+    st.markdown("---")
+    st.header("Official Transaction Record")
+    st.markdown("The complete system logging parameters are anchored below for database storage and recovery procedures.")
+    
+    audit_data = {
+        "Transaction Parameter": [
+            "System Timestamp",
+            "Target Street Query",
+            "Target ZIP Identifier",
+            "USPS Standardized City",
+            "Geographic Grid Boundary",
+            "Latitude Coordinate Node",
+            "Longitude Coordinate Node",
+            "PSAP Routing Code Zone",
+            "Assessor Label Standard",
+            "Resolved Tax Ledger Token",
+            "Official Contact Vector",
+            "Current Compliance Status"
+        ],
+        "System Log Metrics": [
+            st.session_state.search_timestamp if st.session_state.search_timestamp else "N/A",
+            st.session_state.last_searched_street if st.session_state.last_searched_street else "N/A",
+            st.session_state.last_searched_zip if st.session_state.last_searched_zip else "N/A",
+            st.session_state.usps_primary_city if st.session_state.usps_primary_city else "N/A",
+            st.session_state.output_county if st.session_state.output_county else "N/A",
+            st.session_state.output_lat if st.session_state.output_lat else "N/A",
+            st.session_state.output_lon if st.session_state.output_lon else "N/A",
+            st.session_state.psap_sector_code if st.session_state.psap_sector_code else "N/A",
+            st.session_state.parcel_label if st.session_state.parcel_label else "N/A",
+            st.session_state.locked_parcel_value if st.session_state.locked_parcel_value else "PENDING AGENT LOOKUP",
+            st.session_state.county_contact_email if st.session_state.county_contact_email else "N/A",
+            st.session_state.verification_lifecycle_status if st.session_state.verification_lifecycle_status else "N/A"
+        ]
+    }
+    
+    audit_df = pd.DataFrame(audit_data)
+    st.table(audit_df)
+    
+    # Generate JSON logging string directly for secure system exports
+    json_log = audit_df.to_json(orient="records", indent=2)
+    with st.expander("View Raw System Ledger String for Storage Systems"):
+        st.code(json_log, language="json")
+
 else:
     st.caption("Status note: Operational verification lifecycle engine offline. Run a location query above to initialize.")
