@@ -315,6 +315,7 @@ if st.session_state.gis_is_active:
             st.markdown(f"**Target Authority:** `{st.session_state.output_county.upper()}`")
             st.markdown(f"**Target Dispatch Destination:** `{st.session_state.county_contact_email}`")
             st.markdown(f"**Current Lifecycle Audit State:** `[{st.session_state.verification_lifecycle_status}]`")
+            st.markdown(" ") # Spacer for alignment balance
             
             if st.session_state.verification_lifecycle_status == "PENDING_DISPATCH":
                 if st.button("Simulate Auto-Dispatch of Verification Protocol", type="primary", use_container_width=True):
@@ -343,7 +344,7 @@ if st.session_state.gis_is_active:
                     st.rerun()
 
     with lifecycle_col2:
-        st.markdown("### Outbound Verification Notification")
+        st.markdown("### Verification Email Request")
         email_recipient = st.session_state.county_contact_email
         email_subject = f"AUTOMATED E911 INTER-JURISDICTIONAL ADDRESS AUDIT: {st.session_state.last_searched_street}"
         
