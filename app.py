@@ -301,7 +301,7 @@ with parcel_col:
         
         base_portal_url = spreadsheet_url.strip()
         
-        # Append parameters dynamically to handle both pre-formulated and raw domain spreadsheet entries
+        # Append parameters dynamically to handle both pre-formulated and raw entries
         if "?" in base_portal_url:
             if base_portal_url.endswith("=") or base_portal_url.endswith("&"):
                 live_query_url = f"{base_portal_url}{encoded_street}"
@@ -310,7 +310,7 @@ with parcel_col:
         else:
             live_query_url = f"{base_portal_url}?search={encoded_street}"
         
-        # GUARANTEED ACTION BUTTON: Safely isolated outside structural form blocks
+        # GUARANTEED ACTION BUTTON
         st.link_button(
             label=f"Query Live Assessor Database: Match {token_type}",
             url=live_query_url,
@@ -334,3 +334,137 @@ with parcel_col:
         st.caption("Panel offline. Ingest an address path above to populate.")
 
 with usps_col:
+    st.header("USPS Routing Reference")
+    if st.session_state.gis_is_active and st.session_state.usps_primary_city:
+        with st.container(border=True):
+            st.markdown(f"**USPS Standardized Text Profile:** `{st.session_state.usps_standardized_line1}, {st.session_state.usps_primary_city}, CO`")
+            st.markdown(f"**ZIP Delivery Anchor Network:** `{st.session_state.last_searched_zip}-0001`")
+        
+        map_query_string = f"{st.session_state.usps_standardized_line1}, {st.session_state.usps_primary_city}, CO {st.session_state.last_searched_zip}"
+        st.markdown(f'<iframe width="100%" height="160" frameborder="0" src="https://maps.google.com/maps?q={urllib.parse.quote(map_query_string)}&z=16&output=embed"></iframe>', unsafe_allow_html=True)
+    else:
+        st.caption("Panel offline. Ingest an address path above to populate.")
+
+# --- AUTOMATED LIFECYCLE TRACKING ENGINE PANEL ---
+st.markdown("---")
+st.header("Automated Address Verification")
+
+if st.session_state.gis_is_active:
+    lifecycle_col1, lifecycle_col2 = st.columns([1, 1], gap="large")
+    
+    with lifecycle_col1:
+        with st.container(border=True):
+            st.markdown("### County Verification Tracking")
+            st.markdown(f"**Target Authority:** `{st.session_state.output_county.upper()}`")
+            st.markdown(f"**Target Dispatch Destination:** `{st.session_state.county_contact_email}`")
+            st.markdown(f"**Current Lifecycle Audit State:** `[{st.session_state.verification_lifecycle_status}]`")
+            
+            if st.session_state.verification_lifecycle_status == "PENDING_DISPATCH":
+                if st.button("Simulate Auto-Dispatch of Verification Protocol", type="primary", use_container_width=True):
+                    st.session_state.verification_lifecycle_status = "DISPATCHED_AWAITING_REPLY"
+                    st.rerun()
+            elif st.session_state.verification_lifecycle_status == "DISPATCHED_AWAITING_REPLY":
+                st.info("System Check: Audit packet has been transmitted to county database. Setting automation retry clocks.")
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button("Trigger Scheduled 48-Hour No-Response Re-Send", type="secondary", use_container_width=True):
+                        st.session_state.verification_lifecycle_status = "RE_SENT_REMINDER_ACTIVE"
+                        st.rerun()
+                with c2:
+                    if st.button("Receive Inbound County Approval Token", type="primary", use_container_width=True):
+                        st.session_state.verification_lifecycle_status = "VERIFICATION_CONFIRMED_COMPLIANT"
+                        st.rerun()
+            elif st.session_state.verification_lifecycle_status == "RE_SENT_REMINDER_ACTIVE":
+                st.warning("Escalated Status: Follow-up verification audit packet re-sent to county node.")
+                if st.button("Receive Inbound County Approval Token (Post-Reminder)", type="primary", use_container_width=True):
+                    st.session_state.verification_lifecycle_status = "VERIFICATION_CONFIRMED_COMPLIANT"
+                    st.rerun()
+            elif st.session_state.verification_lifecycle_status == "VERIFICATION_CONFIRMED_COMPLIANT":
+                st.success("LIFECYCLE TERMINATED: System Confirmation Email Dispatched Successfully.")
+                if st.button("Unlock and Re-Open Verification Lifecycle", type="secondary"):
+                    st.session_state.verification_lifecycle_status = "PENDING_DISPATCH"
+                    st.rerun()
+
+    with lifecycle_col2:
+        with st.container(border=True):
+            st.markdown("### Verification Email Request")
+            email_recipient = st.session_state.county_contact_email
+            email_subject = f"AUTOMATED E911 INTER-JURISDICTIONAL ADDRESS AUDIT: {st.session_state.last_searched_street}"
+            
+            if st.session_state.verification_lifecycle_status in ["PENDING_DISPATCH", "DISPATCHED_AWAITING_REPLY"]:
+                email_body = (
+                    f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
+                    f"Our E911 carrier data system has flagged a routing parameter sync at: {st.session_state.last_searched_street}, {st.session_state.last_searched_zip}.\n"
+                    f"Geographic Coordinates: Lat {st.session_state.output_lat}, Lon {st.session_state.output_lon}.\n"
+                    f"Please verify this data match matches your internal database records for {st.session_state.parcel_label}.\n\n"
+                    f"This request is processed under life-safety infrastructure communication guidelines."
+                )
+            elif st.session_state.verification_lifecycle_status == "RE_SENT_REMINDER_ACTIVE":
+                email_body = (
+                    f"SECOND NOTICE - REMINDER TIMEOUT\n"
+                    f"Attention: GIS / Address Assessor Records Division for {st.session_state.output_county},\n\n"
+                    f"This is an automated follow-up tracking ticket for the address: {st.session_state.last_searched_street}.\n"
+                    f"No database synchronization status was received within our 48-hour network clock cycle. Please verify immediately."
+                )
+            else:
+                email_body = (
+                    f"TRANSACTION COMPLETE - VERIFICATION LOCKED\n"
+                    f"To: Carrier Engineering Operations / {st.session_state.output_county} Archive Node,\n\n"
+                    f"The address trajectory for {st.session_state.last_searched_street} has successfully achieved system compliance confirmation.\n"
+                    f"Resolved Node: {st.session_state.locked_parcel_value} ({st.session_state.parcel_label}).\n"
+                    f"Operational Timestamp: {st.session_state.search_timestamp}."
+                )
+                
+            st.markdown(f"**To:** `{email_recipient}`")
+            st.markdown(f"**Subject:** `{email_subject}`")
+            st.divider()
+            st.text(email_body)
+            
+            st.link_button("Manual Local Mail Client Dispatch Backup Override", f"mailto:{email_recipient}?subject={urllib.parse.quote(email_subject)}&body={urllib.parse.quote(email_body)}", use_container_width=True)
+
+    # --- TIMESTAMPED SUMMARY AND AUDIT LOG RETENTION MODULE ---
+    st.markdown("---")
+    st.header("Official Transaction Record")
+    st.markdown("The complete system logging parameters are anchored below for database storage and recovery procedures.")
+    
+    audit_data = {
+        "Transaction Parameter": [
+            "System Timestamp",
+            "Target Street Query",
+            "Target ZIP Identifier",
+            "USPS Standardized City",
+            "Geographic Grid Boundary",
+            "Latitude Coordinate Node",
+            "Longitude Coordinate Node",
+            "PSAP Routing Code Zone",
+            "Assessor Label Standard",
+            "Resolved Tax Ledger Token",
+            "Official Contact Vector",
+            "Current Compliance Status"
+        ],
+        "System Log Metrics": [
+            st.session_state.search_timestamp if st.session_state.search_timestamp else "N/A",
+            st.session_state.last_searched_street if st.session_state.last_searched_street else "N/A",
+            st.session_state.last_searched_zip if st.session_state.last_searched_zip else "N/A",
+            st.session_state.usps_primary_city if st.session_state.usps_primary_city else "N/A",
+            st.session_state.output_county if st.session_state.output_county else "N/A",
+            st.session_state.output_lat if st.session_state.output_lat else "N/A",
+            st.session_state.output_lon if st.session_state.output_lon else "N/A",
+            st.session_state.psap_sector_code if st.session_state.psap_sector_code else "N/A",
+            st.session_state.parcel_label if st.session_state.parcel_label else "N/A",
+            st.session_state.locked_parcel_value if st.session_state.locked_parcel_value else "PENDING AGENT LOOKUP",
+            st.session_state.county_contact_email if st.session_state.county_contact_email else "N/A",
+            st.session_state.verification_lifecycle_status if st.session_state.verification_lifecycle_status else "N/A"
+        ]
+    }
+    
+    audit_df = pd.DataFrame(audit_data)
+    st.table(audit_df)
+    
+    # Generate JSON logging string directly for secure system exports
+    json_log = audit_df.to_json(orient="records", indent=2)
+    with st.expander("View Raw System Ledger String for Storage Systems"):
+        st.code(json_log, language="json")
+
+else:
+    st.caption("Status note: Operational verification lifecycle engine offline. Run a location query above to initialize.")
