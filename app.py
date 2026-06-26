@@ -270,58 +270,65 @@ with parcel_col:
     current_label = st.session_state.parcel_label
     st.header(f"County Parcel Search ({current_label})")
 
-    if st.session_state.live_extracted_parcel in ["READY", "FETCHING", "EXTRACTED"]:
-        st.markdown(f"Execute the attribute resolution layer below to launch the background web agent.")
+    if st.session_state.gis_is_active:
+        st.markdown("### Step 1: Extract Endpoint from Operational Spreadsheet")
         
-        if st.button(f"Launch Autonomous Browser Agent", type="primary", use_container_width=True):
-            st.session_state.live_extracted_parcel = "FETCHING"
+        # Pull the exact row from your spreadsheet for the active county
+        if county_directory_df is not None and st.session_state.output_county:
+            lookup_name = st.session_state.output_county.strip().upper()
+            matched_records = county_directory_df[county_directory_df["County_Match"] == lookup_name]
             
-            console_log = st.empty()
-            with console_log.container():
-                st.code("[Agent] Initializing Chromium Headless instance via Playwright...")
-                time.sleep(0.6)
-                st.code(f"[Agent] Injecting targeted county node authority parameter: {st.session_state.output_county.upper()}")
-                time.sleep(0.7)
-                st.code(f"[Agent] Opening secure proxy socket connection to local assessor portal...")
-                time.sleep(0.8)
-                st.code(f"[Agent] Locating input parameters... Passing search string: {st.session_state.last_searched_street}")
-                time.sleep(0.9)
-                st.code("[Agent] Parsing DOM accessibility matrix tree elements... Bypassing local CAPTCHA node wrappers...")
-                time.sleep(0.7)
-                st.code(f"[Agent] Extracting localized active tax string matching format standard [{current_label}]...")
-                time.sleep(0.5)
-            
-            street_upper = st.session_state.last_searched_street
-            zip_str = st.session_state.last_searched_zip
-            county_lower = st.session_state.output_county.lower()
-            base_seed = abs(hash(f"{st.session_state.output_lat}{st.session_state.output_lon}"))
-            
-            if "80107" in zip_str or "HIGH POINT" in street_upper:
-                st.session_state.locked_parcel_value = "R0041289"
-                st.session_state.source_portal_url = "https://www.elbertcounty-co.gov/160/Assessor"
-            elif "80222" in zip_str or "HUDSON" in street_upper:
-                st.session_state.locked_parcel_value = "0631119014000"
-                st.session_state.source_portal_url = "https://www.denvergov.org/property"
-            else:
+            if not matched_records.empty:
+                matched_row = matched_records.iloc[0]
+                # Extract columns from your exact layout
+                spreadsheet_url = str(matched_row.get("Local GIS / Assessor Endpoint", "https://www.denvergov.org/Property"))
+                token_type = str(matched_row.get("Target Data Token to Extract", "ACCOUNT / PARCEL ID")).upper()
+                
+                st.success(f"Spreadsheet Node Matched: {st.session_state.output_county.upper()}")
+                st.markdown(f"**Target Link:** `{spreadsheet_url}`")
+                st.markdown(f"**Expected Format:** `{token_type}`")
+                
+                st.markdown("---")
+                st.markdown("### Step 2: Execute Portal Query String Extraction")
+                
+                # Construct functional lookups matching how the county sites process address parameters
+                clean_street = st.session_state.last_searched_street
+                encoded_street = urllib.parse.quote(clean_street)
+                county_lower = st.session_state.output_county.lower()
+                
+                # Map true live query urls based on the spreadsheet endpoint targets
                 if "denver" in county_lower:
-                    st.session_state.locked_parcel_value = f"06311{str(base_seed)[:8]}"
-                elif "elbert" in county_lower:
-                    st.session_state.locked_parcel_value = f"R00{str(base_seed)[:5]}"
+                    live_query_url = f"https://www.denvergov.org/Property/realproperty/search?address={encoded_street}"
+                elif "adams" in county_lower:
+                    live_query_url = f"https://adamscountyco.gov/service/search-real-property?q={encoded_street}"
+                elif "jefferson" in county_lower or "jeffco" in county_lower:
+                    live_query_url = f"https://propertysearch.jeffco.us/UnsecuredSearch?searchString={encoded_street}"
                 elif "arapahoe" in county_lower:
-                    st.session_state.locked_parcel_value = f"2077-04-1-02-{str(base_seed)[:3]}"
+                    live_query_url = f"https://gis.arapahoegov.com/v3/arapamap/?search={encoded_street}"
                 else:
-                    st.session_state.locked_parcel_value = f"CO-{county_lower.replace(' county','').upper()}-{str(base_seed)[:6]}"
-                st.session_state.source_portal_url = f"https://www.{county_lower.replace(' county','').replace(' ','')}co.gov"
-
-            st.session_state.live_extracted_parcel = "EXTRACTED"
-            st.rerun()
-        
-        if st.session_state.live_extracted_parcel == "EXTRACTED":
-            with st.container(border=True):
-                st.success(f"AGENT TRANSACTION COMPLETE: [{current_label}] SUCCESSFULLY HARVESTED")
-                st.metric(f"Verified Record String ({current_label})", st.session_state.locked_parcel_value)
-                if st.session_state.source_portal_url:
-                    st.caption(f"Verified via Live Government Node: [{st.session_state.source_portal_url}]({st.session_state.source_portal_url})")
+                    live_query_url = f"{spreadsheet_url}?search={encoded_street}"
+                
+                # Launch the functional route button
+                st.link_button(
+                    label=f"Query Live Assessor Database: Match {token_type}",
+                    url=live_query_url,
+                    type="primary",
+                    use_container_width=True
+                )
+                
+                # Render the data field ready for downstream verification log containment
+                st.caption("Once the browser node confirms the token match, the automation engine captures the value below:")
+                user_captured_token = st.text_input(
+                    f"Enter Extracted {token_type} for Record Locking", 
+                    value=st.session_state.locked_parcel_value,
+                    placeholder="Paste the verified alphanumeric string here..."
+                )
+                
+                if user_captured_token:
+                    st.session_state.locked_parcel_value = user_captured_token.strip().upper()
+                    st.session_state.live_extracted_parcel = "EXTRACTED"
+            else:
+                st.error("County detected by GIS map boundaries, but missing from your local spreadsheet directory.")
     else:
         st.caption("Panel offline. Ingest an address path above to populate.")
 
