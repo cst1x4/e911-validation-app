@@ -3,6 +3,7 @@ import requests
 import urllib.parse
 import pandas as pd
 import time
+import os
 from datetime import datetime
 
 # --- MASTER SUITE INITIALIZATION ---
@@ -19,6 +20,25 @@ st.markdown(
     requiring third-party enterprise data subscriptions.
     """
 )
+
+# --- DETECTED REGIONAL DATA DIRECTORY LAYER ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EXCEL_PATH = os.path.join(BASE_DIR, "data", "denver_metro_directory.xlsx")
+
+@st.cache_data
+def load_county_directory():
+    try:
+        df = pd.read_excel(EXCEL_PATH, sheet_name="County_Directory")
+        # Standardize county names to uppercase for robust matching strings
+        if "County" in df.columns:
+            df["County_Match"] = df["County"].astype(str).str.strip().str.upper()
+        return df
+    except Exception as e:
+        # Fallback gracefully if container environment is still initializing dependencies
+        return None
+
+county_directory_df = load_county_directory()
+
 
 # --- SECURE BACKGROUND STATE VAULT ---
 if "gis_is_active" not in st.session_state:
@@ -173,18 +193,32 @@ with input_panel:
                     st.session_state.gis_is_active = True
                     st.session_state.msag_discrepancy_flag = True
 
-                # Format mapper configurations
-                county_lower = st.session_state.output_county.lower()
-                if "denver" in county_lower:
-                    st.session_state.parcel_label = "SCHEDULE NUMBER"
-                    st.session_state.county_contact_email = "assessor@denvergov.org"
-                elif "elbert" in county_lower:
-                    st.session_state.parcel_label = "ACCOUNT#"
-                    st.session_state.county_contact_email = "assessor@elbertcounty-co.gov"
+                # --- DIRECTORY CROSS-REFERENCE INGESTION SYSTEM ---
+                matched_row = None
+                if county_directory_df is not None and "County_Match" in county_directory_df.columns:
+                    lookup_name = st.session_state.output_county.strip().upper()
+                    matched_records = county_directory_df[county_directory_df["County_Match"] == lookup_name]
+                    if not matched_records.empty:
+                        matched_row = matched_records.iloc[0]
+
+                # Map configurations out of Directory Matrix or process default fallback logic
+                if matched_row is not None:
+                    # Pull values from columns defined in your layout
+                    st.session_state.parcel_label = str(matched_row.get("Target Data Token to Extract", "ACCOUNT / PARCEL ID")).upper()
+                    st.session_state.county_contact_email = str(matched_row.get("Public Contact Data Vector", "your_validated_email"))
                 else:
-                    st.session_state.parcel_label = "ACCOUNT / PARCEL ID"
-                    sanitized_slug = county_lower.replace(" county", "").replace(" ", "")
-                    st.session_state.county_contact_email = f"assessor@{sanitized_slug}gov.org"
+                    # Autonomous Fallback Framework for non-indexed territories
+                    county_lower = st.session_state.output_county.lower()
+                    if "denver" in county_lower:
+                        st.session_state.parcel_label = "SCHEDULE NUMBER"
+                        st.session_state.county_contact_email = "assessor@denvergov.org"
+                    elif "elbert" in county_lower:
+                        st.session_state.parcel_label = "ACCOUNT#"
+                        st.session_state.county_contact_email = "assessor@elbertcounty-co.gov"
+                    else:
+                        st.session_state.parcel_label = "ACCOUNT / PARCEL ID"
+                        sanitized_slug = county_lower.replace(" county", "").replace(" ", "")
+                        st.session_state.county_contact_email = f"assessor@{sanitized_slug}gov.org"
 
                 st.session_state.psap_sector_code = f"PSAP-ZONE-{str(abs(hash(st.session_state.output_county)))[:3]}-E911"
                 st.session_state.verification_lifecycle_status = "PENDING_DISPATCH"
@@ -369,7 +403,7 @@ if st.session_state.gis_is_active:
                     f"TRANSACTION COMPLETE - VERIFICATION LOCKED\n"
                     f"To: Carrier Engineering Operations / {st.session_state.output_county} Archive Node,\n\n"
                     f"The address trajectory for {st.session_state.last_searched_street} has successfully achieved system compliance confirmation.\n"
-                    f"Resolved Node: {st.session_value if hasattr(st.session_state, 'session_value') else st.session_state.locked_parcel_value} ({st.session_state.parcel_label}).\n"
+                    f"Resolved Node: {st.session_state.locked_parcel_value} ({st.session_state.parcel_label}).\n"
                     f"Operational Timestamp: {st.session_state.search_timestamp}."
                 )
                 
