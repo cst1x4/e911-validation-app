@@ -200,6 +200,7 @@ with input_panel:
                     if not matched_records.empty:
                         matched_row = matched_records.iloc[0]
 
+                # Map configurations out of Directory Matrix or process default fallback logic
                 if matched_row is not None:
                     st.session_state.parcel_label = str(matched_row.get("Token_Label", "ACCOUNT / PARCEL ID")).upper()
                 else:
@@ -211,6 +212,7 @@ with input_panel:
                     else:
                         st.session_state.parcel_label = "ACCOUNT / PARCEL ID"
 
+                # OVERRIDE: Secure all dynamic communication routes directly to verified testing email
                 st.session_state.county_contact_email = "csterrellart@gmail.com"
                 st.session_state.psap_sector_code = f"PSAP-ZONE-{str(abs(hash(st.session_state.output_county)))[:3]}-E911"
                 st.session_state.verification_lifecycle_status = "PENDING_DISPATCH"
@@ -293,14 +295,17 @@ with parcel_col:
         clean_street = st.session_state.last_searched_street
         encoded_street = urllib.parse.quote(clean_street)
         
-        # EXCEL ARCHITECTURE DEPLOYMENT LAYER (No hardcoding)
-        if "?" in spreadsheet_url:
-            if spreadsheet_url.endswith("=") or spreadsheet_url.endswith("&"):
-                live_query_url = f"{spreadsheet_url}{encoded_street}"
+        # EXCEL ARCHITECTURE DEPLOYMENT LAYER (With support for Hash/Spatialest query configurations)
+        base_portal_url = spreadsheet_url
+        if base_portal_url.endswith("#/"):
+            live_query_url = f"{base_portal_url}?search={encoded_street}"
+        elif "?" in base_portal_url:
+            if base_portal_url.endswith("=") or base_portal_url.endswith("&"):
+                live_query_url = f"{base_portal_url}{encoded_street}"
             else:
-                live_query_url = f"{spreadsheet_url}&search={encoded_street}"
+                live_query_url = f"{base_portal_url}&search={encoded_street}"
         else:
-            live_query_url = f"{spreadsheet_url}?search={encoded_street}"
+            live_query_url = f"{base_portal_url}?search={encoded_street}"
         
         st.link_button(
             label=f"Query Live Assessor Database: Match {token_type}",
