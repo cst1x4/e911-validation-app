@@ -23,18 +23,17 @@ st.markdown(
 
 # --- DETECTED REGIONAL DATA DIRECTORY LAYER ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EXCEL_PATH = os.path.join(BASE_DIR, "data", "denver_metro_directory.xlsx")
+EXCEL_PATH = os.path.join(BASE_DIR, "data", "denver_metro_directory.xlsx.xlsx")
 
 @st.cache_data
 def load_county_directory():
     try:
-        df = pd.read_excel(EXCEL_PATH, sheet_name="County_Directory")
-        # Standardize county names to uppercase for robust matching strings
-        if "County" in df.columns:
-            df["County_Match"] = df["County"].astype(str).str.strip().str.upper()
+        df = pd.read_excel(EXCEL_PATH, sheet_name="Sheet1", header=None)
+        df.columns = ["County_Name", "Endpoint_Url", "Contact_Email", "Token_Label"]
+        df["County_Match"] = df["County_Name"].astype(str).str.strip().str.upper()
         return df
     except Exception as e:
-        # Fallback gracefully if container environment is still initializing dependencies
+        st.sidebar.error(f"Spreadsheet Linkage Active Error: {e}")
         return None
 
 county_directory_df = load_county_directory()
@@ -196,14 +195,13 @@ with input_panel:
                 # --- DIRECTORY CROSS-REFERENCE INGESTION SYSTEM ---
                 matched_row = None
                 if county_directory_df is not None and "County_Match" in county_directory_df.columns:
-                    lookup_name = st.session_state.output_county.strip().upper()
+                    lookup_name = st.session_state.output_county.upper().replace(" COUNTY", "").strip()
                     matched_records = county_directory_df[county_directory_df["County_Match"] == lookup_name]
                     if not matched_records.empty:
                         matched_row = matched_records.iloc[0]
 
-                # Map configurations out of Directory Matrix or process default fallback logic
                 if matched_row is not None:
-                    st.session_state.parcel_label = str(matched_row.get("Target Data Token to Extract", "ACCOUNT / PARCEL ID")).upper()
+                    st.session_state.parcel_label = str(matched_row.get("Token_Label", "ACCOUNT / PARCEL ID")).upper()
                 else:
                     county_lower = st.session_state.output_county.lower()
                     if "denver" in county_lower:
@@ -213,7 +211,6 @@ with input_panel:
                     else:
                         st.session_state.parcel_label = "ACCOUNT / PARCEL ID"
 
-                # OVERRIDE: Secure all dynamic communication routes directly to verified testing email
                 st.session_state.county_contact_email = "csterrellart@gmail.com"
                 st.session_state.psap_sector_code = f"PSAP-ZONE-{str(abs(hash(st.session_state.output_county)))[:3]}-E911"
                 st.session_state.verification_lifecycle_status = "PENDING_DISPATCH"
@@ -268,20 +265,18 @@ with parcel_col:
     if st.session_state.gis_is_active:
         st.markdown("### Step 1: Extract Endpoint from Operational Spreadsheet")
         
-        # Initialize default values in case spreadsheet matching skips
         spreadsheet_url = "https://www.denvergov.org/Property"
         token_type = current_label
         matched_via_excel = False
         
-        # Attempt to pull the exact row from your spreadsheet for the active county
         if county_directory_df is not None and st.session_state.output_county:
-            lookup_name = st.session_state.output_county.strip().upper()
+            lookup_name = st.session_state.output_county.upper().replace(" COUNTY", "").strip()
             matched_records = county_directory_df[county_directory_df["County_Match"] == lookup_name]
             
             if not matched_records.empty:
                 matched_row = matched_records.iloc[0]
-                spreadsheet_url = str(matched_row.get("Local GIS / Assessor Endpoint", "https://www.denvergov.org/Property"))
-                token_type = str(matched_row.get("Target Data Token to Extract", current_label)).upper()
+                spreadsheet_url = str(matched_row.get("Endpoint_Url", "https://www.denvergov.org/Property")).strip()
+                token_type = str(matched_row.get("Token_Label", current_label)).upper()
                 matched_via_excel = True
 
         if matched_via_excel:
@@ -289,28 +284,24 @@ with parcel_col:
         else:
             st.warning(f"GIS Active: Using dynamic automated query string fallback for {st.session_state.output_county.upper()}")
             
-        st.markdown(f"**Target Link:** `{spreadsheet_url}`")
+        st.markdown(f"**Target Link from Excel:** `{spreadsheet_url}`")
         st.markdown(f"**Expected Format:** `{token_type}`")
         
         st.markdown("---")
         st.markdown("### Step 2: Execute Portal Query String Extraction")
         
-        # Construct functional lookups using your exact spreadsheet endpoints
         clean_street = st.session_state.last_searched_street
         encoded_street = urllib.parse.quote(clean_street)
         
-        base_portal_url = spreadsheet_url.strip()
-        
-        # Append parameters dynamically to handle both pre-formulated and raw entries
-        if "?" in base_portal_url:
-            if base_portal_url.endswith("=") or base_portal_url.endswith("&"):
-                live_query_url = f"{base_portal_url}{encoded_street}"
+        # EXCEL ARCHITECTURE DEPLOYMENT LAYER (No hardcoding)
+        if "?" in spreadsheet_url:
+            if spreadsheet_url.endswith("=") or spreadsheet_url.endswith("&"):
+                live_query_url = f"{spreadsheet_url}{encoded_street}"
             else:
-                live_query_url = f"{base_portal_url}&search={encoded_street}"
+                live_query_url = f"{spreadsheet_url}&search={encoded_street}"
         else:
-            live_query_url = f"{base_portal_url}?search={encoded_street}"
+            live_query_url = f"{spreadsheet_url}?search={encoded_street}"
         
-        # GUARANTEED ACTION BUTTON
         st.link_button(
             label=f"Query Live Assessor Database: Match {token_type}",
             url=live_query_url,
@@ -461,7 +452,6 @@ if st.session_state.gis_is_active:
     audit_df = pd.DataFrame(audit_data)
     st.table(audit_df)
     
-    # Generate JSON logging string directly for secure system exports
     json_log = audit_df.to_json(orient="records", indent=2)
     with st.expander("View Raw System Ledger String for Storage Systems"):
         st.code(json_log, language="json")
