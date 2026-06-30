@@ -248,17 +248,6 @@ with display_panel:
             st.markdown(f"**Official Authority Contact:** `{st.session_state.county_contact_email}`")
             st.markdown(f"**Calculated Lat/Lon Coordinates:** `{st.session_state.output_lat} , {st.session_state.output_lon}`")
         
-        # --- ADDITIONAL SOURCES ---
-        st.markdown("### Additional Sources")
-        search_addr = f"{st.session_state.last_searched_street}, CO {st.session_state.last_searched_zip}"
-        encoded_addr = urllib.parse.quote(search_addr)
-        
-        src_col1, src_col2, src_col3 = st.columns(3)
-        src_col1.link_button("Bing Maps", f"https://www.bing.com/maps?q={encoded_addr}", use_container_width=True)
-        src_col2.link_button("Zillow", f"https://www.zillow.com/homes/{encoded_addr}_rb/", use_container_width=True)
-        src_col3.link_button("Redfin", f"https://www.redfin.com/stingray/do/query?location={encoded_addr}", use_container_width=True)
-        
-        st.markdown(" ")
         search_query = f"official {target_county} government property parcel assessor account lookup site:.gov"
         county_search_portal_url = f"https://www.google.com/search?q={urllib.parse.quote(search_query)}"
         st.link_button(f"Launch Live Audit: Inspect Official {target_county} Portal", county_search_portal_url, use_container_width=True)
