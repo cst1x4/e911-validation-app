@@ -451,5 +451,3 @@ if st.session_state.gis_is_active:
 
 else:
     st.caption("Status note: Operational verification lifecycle engine offline. Run a location query above to initialize.")
-
-```
