@@ -23,7 +23,8 @@ st.markdown(
 
 # --- DETECTED REGIONAL DATA DIRECTORY LAYER ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EXCEL_PATH = os.path.join(BASE_DIR, "data", "denver_metro_directory.xlsx.xlsx")
+# EXPLICIT FIX: Single extension mapping directly to your sanitized Excel file
+EXCEL_PATH = os.path.join(BASE_DIR, "data", "denver_metro_directory.xlsx")
 
 @st.cache_data
 def load_county_directory():
@@ -279,19 +280,6 @@ with parcel_col:
                 token_type = str(matched_row.get("Token_Label", current_label)).upper()
                 matched_via_excel = True
 
-        # Fallback to prevent broken links if spreadsheet has descriptive text instead of a URL
-        if not spreadsheet_url.startswith("http"):
-            if "DENVER" in st.session_state.output_county.upper():
-                spreadsheet_url = "https://property.spatialest.com/co/denver#/"
-            elif "ADAMS" in st.session_state.output_county.upper():
-                spreadsheet_url = "https://gisapp.adcogov.org/PropertySearch/"
-            elif "ARAPAHOE" in st.session_state.output_county.upper():
-                spreadsheet_url = "https://gis.arapahoegov.com/v3/arapamap/"
-            elif "JEFFERSON" in st.session_state.output_county.upper():
-                spreadsheet_url = "https://propertysearch.jeffco.us/UnsecuredSearch"
-            else:
-                spreadsheet_url = "https://www.colorado.gov/"
-
         if matched_via_excel:
             st.success(f"Spreadsheet Node Matched: {st.session_state.output_county.upper()}")
         else:
@@ -306,7 +294,7 @@ with parcel_col:
         clean_street = st.session_state.last_searched_street
         encoded_street = urllib.parse.quote(clean_street)
         
-        # URL CONSTRUCTION FOR AUTOMATED SEARCH EXECUTION
+        # EXCEL ARCHITECTURE DEPLOYMENT LAYER (With support for Hash/Spatialest query configurations)
         base_portal_url = spreadsheet_url
         if "spatialest.com" in base_portal_url:
             # Spatialest specific direct-search hash route
@@ -510,4 +498,4 @@ if st.session_state.gis_is_active:
         st.code(json_log, language="json")
 
 else:
-    st.caption("Status note: Operational verification lifecycle engine offline. Run a location query above to initialize.")
+    st.caption("Status note: Operational verification lifecycle engine offline. Run a location query above to initialize.") 
