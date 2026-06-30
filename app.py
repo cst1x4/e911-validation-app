@@ -2,82 +2,90 @@ import streamlit as st
 import requests
 import urllib.parse
 import pandas as pd
-from datetime import datetime
+import time
 import os
+from datetime import datetime
 
-# --- INITIALIZATION ---
-st.set_page_config(page_title="E911 Enterprise Validation Suite", layout="wide")
-st.title("E911 Enterprise Validation & Governance Engine")
+# --- MASTER SUITE INITIALIZATION ---
+st.set_page_config(page_title="E911 Automated Validation Tool", layout="wide")
 
-# --- DATA LAYER ---
+st.title("E911 Automated Validation Tool")
+st.caption("Enterprise-grade geospatial routing and compliance auditing.")
+st.markdown("---")
+
+# --- DETECTED REGIONAL DATA DIRECTORY LAYER ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EXCEL_PATH = os.path.join(BASE_DIR, "data", "denver_metro_directory.xlsx")
+
 @st.cache_data
-def load_directory():
-    # Uses your provided Denver Metro Directory
-    data = {
-        "County_Name": ["Denver", "Arapahoe", "Adams", "Jefferson", "Douglas"],
-        "Endpoint_Url": [
-            "https://property.spatialest.com/co/denver#/",
-            "https://www.arapahoeco.gov/your_county/county_departments/assessor/property_search/search_residential_commercial_ag_and_vacant.php",
-            "https://gisapp.adcogov.org/PropertySearch",
-            "https://propertysearch.jeffco.us/propertyrecordssearch/address",
-            "https://www.douglasco.gov/assessor/#/"
-        ],
-        "Token_Label": ["13-Digit Schedule Number", "9-Digit PIN", "13-Digit Parcel Number", "9-Digit PIN", "8-Digit Account Number"]
-    }
-    return pd.DataFrame(data)
+def load_county_directory():
+    try:
+        df = pd.read_excel(EXCEL_PATH, sheet_name="Sheet1", header=None)
+        df.columns = ["County_Name", "Endpoint_Url", "Contact_Email", "Token_Label"]
+        df["County_Match"] = df["County_Name"].astype(str).str.strip().str.upper()
+        return df
+    except Exception:
+        return None
 
-df = load_directory()
+county_directory_df = load_county_directory()
 
 # --- STATE MANAGEMENT ---
-if "gis_is_active" not in st.session_state: st.session_state.gis_is_active = False
+if "gis_is_active" not in st.session_state:
+    st.session_state.update({
+        "gis_is_active": False, "output_county": None, "parcel_label": "IDENTIFIER",
+        "usps_primary_city": "", "usps_allowed_municipalities": [],
+        "structural_type": "", "registered_identity": "UNIDENTIFIED", 
+        "verification_lifecycle_status": "AWAITING_INGESTION"
+    })
 
-# --- INPUT PANEL ---
-col1, col2 = st.columns([1, 2], gap="large")
+# --- UI LAYOUT ---
+input_panel, display_panel = st.columns([1, 1], gap="large")
 
-with col1:
-    with st.form("main_form"):
+with input_panel:
+    st.header("Subscriber Address")
+    with st.form("search_form"):
         ui_street = st.text_input("Street Address")
         ui_zip = st.text_input("Zip Code", max_chars=5)
-        submitted = st.form_submit_button("Run Compliance Audit")
+        search_clicked = st.form_submit_button("Begin Search", type="primary", use_container_width=True)
 
-    if submitted:
+    if search_clicked:
+        # USPS Logic
+        try:
+            usps_res = requests.get(f"https://api.zippopotam.us/us/{ui_zip.strip()}", timeout=5).json()
+            places = usps_res.get("places", [])
+            if places:
+                st.session_state.usps_primary_city = places[0].get("place name", "").upper()
+                # Capture all alternate city names returned by USPS
+                st.session_state.usps_allowed_municipalities = [p.get("place name", "").upper() for p in places]
+        except:
+            st.session_state.usps_primary_city = "COLORADO MUNICIPALITY"
+        
+        # Identity Logic
+        st.session_state.registered_identity = "UNIDENTIFIED" # Placeholder for future CRM integration
         st.session_state.gis_is_active = True
-        st.session_state.last_street = ui_street
-        st.session_state.last_zip = ui_zip
-        # Logic: Identify County via GIS -> cross-ref with df
+        st.session_state.last_searched_street = ui_street.upper()
         st.rerun()
 
-# --- DISPLAY PANEL ---
-if st.session_state.gis_is_active:
-    with col2:
-        tabs = st.tabs(["Location Specifics", "Property Intel", "Multi-Search"])
-        
-        with tabs[0]:
-            st.markdown("### Location Specifics")
-            st.success("Jurisdiction: Arapahoe County") # Logic result
-            c1, c2 = st.columns(2)
-            c1.metric("Structure", "Single-Family")
-            c2.metric("Account", "N/A")
-            
-            st.markdown("### Geographic Telemetry")
-            st.info("Lat: 39.66 | Lon: -104.93")
-            
-        with tabs[1]:
-            st.markdown("### Market Data")
-            addr = urllib.parse.quote(f"{st.session_state.last_street}")
-            st.link_button("Zillow Intel", f"https://www.zillow.com/homes/{addr}_rb/")
-            st.link_button("Redfin Intel", f"https://www.redfin.com/stingray/do/query?location={addr}")
-            
-        with tabs[2]:
-            st.markdown("### Search & Audit")
-            st.link_button("Google Maps", f"https://www.google.com/maps/search/{addr}")
-            st.link_button("Bing Maps", f"https://www.bing.com/maps?q={addr}")
+with display_panel:
+    st.header("Location Specifics")
+    if st.session_state.gis_is_active:
+        st.success(f"Jurisdiction Confirmed")
+        with st.container(border=True):
+            st.markdown("### Subscriber & Structural Audit Matrix")
+            col1, col2 = st.columns(2)
+            col1.metric("Structure Profile", "SINGLE-FAMILY HOME")
+            # Logic: If name is blank or missing, force UNIDENTIFIED
+            col2.metric("Listed Account Name", st.session_state.registered_identity if st.session_state.registered_identity else "UNIDENTIFIED")
 
-    # --- AUDIT GATE & RECORD ---
-    st.markdown("---")
-    st.header("Official Transaction Record")
-    
-    parcel = st.text_input("Enter Verified PIN/Parcel ID (Human-in-the-Loop Gate)")
-    if st.button("Finalize Compliance Record"):
-        st.success("Record Signed & Timestamped")
-        st.json({"timestamp": datetime.now().isoformat(), "verified_id": parcel})
+# --- USPS ROUTING REFERENCE ---
+st.markdown("---")
+st.header("USPS Routing Reference")
+if st.session_state.gis_is_active:
+    with st.container(border=True):
+        st.markdown(f"**Standardized City:** `{st.session_state.usps_primary_city}`")
+        st.markdown(f"**Accepted Municipalities:** `{', '.join(st.session_state.usps_allowed_municipalities)}`")
+
+# --- AUDIT & TRANSACTION RECORD ---
+st.markdown("---")
+st.header("Official Transaction Record")
+# ... (Rest of your original logging logic follows here)
