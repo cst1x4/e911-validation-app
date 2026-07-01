@@ -92,7 +92,7 @@ if "open_spatial_id" not in st.session_state:
 if "auditor_notes" not in st.session_state:
     st.session_state.auditor_notes = ""
 
-# --- CODE B: NEW ENTERPRISE COMPLIANCE STATE VAULT METRICS ---
+# --- ENTERPRISE COMPLIANCE STATE VAULT METRICS ---
 if "routing_profile" not in st.session_state:
     st.session_state.routing_profile = "Residential"
 if "input_apt_suite" not in st.session_state:
@@ -112,7 +112,6 @@ with input_panel:
     st.markdown("Enter standard address strings below to execute regional cross-system verification cycles.")
     
     with st.form(key=f"search_form_instance_{st.session_state.form_session_id}", clear_on_submit=False):
-        # CODE B: Structural Account Profile Forking Radio Switch
         ui_profile = st.radio(
             "Wholesale Account Routing Profile Selector", 
             ["Residential", "Commercial (Enterprise MLTS)"],
@@ -121,7 +120,6 @@ with input_panel:
         
         ui_street_str = st.text_input("Street Address", placeholder="e.g., 2985 S Hudson St or 863 High Point Trl")
         
-        # CODE B: Explicit Sub-Unit Form Inputs
         sub_col1, sub_col2 = st.columns(2)
         ui_apt_suite = sub_col1.text_input("Apt / Suite / Room", placeholder="e.g., Apt 4B or Suite 300")
         ui_floor = sub_col2.text_input("Floor Level (If Applicable)", placeholder="e.g., 3rd Floor")
@@ -149,7 +147,6 @@ with input_panel:
             st.session_state.msag_discrepancy_flag = False
             st.session_state.source_portal_url = ""
             
-            # Save Code B Context Variables
             st.session_state.routing_profile = ui_profile
             st.session_state.input_apt_suite = ui_apt_suite.strip().upper()
             st.session_state.input_floor = ui_floor.strip().upper()
@@ -177,11 +174,14 @@ with input_panel:
                 st.session_state.usps_state = "CO"
                 st.session_state.usps_allowed_municipalities = ["DATA COMPLETION EXCEPTION"]
 
-            # Structural type parsing
-            clean_street_upper = ui_street_str.strip().upper()
-            if any(token in clean_street_upper for token in ["STE", "SUITE", "BLDG", "BUILDING", "OFFICE", "INC", "CORP"]):
+            # --- CODE B FIX: ENHANCED STRUCTURAL PROFILING LOGIC ---
+            combined_search_string = f"{st.session_state.last_searched_street} {st.session_state.input_apt_suite} {st.session_state.input_floor}"
+            
+            if "Commercial" in st.session_state.routing_profile:
+                st.session_state.structural_type = "ENTERPRISE COMMERCIAL COMPLEX"
+            elif any(token in combined_search_string for token in ["STE", "SUITE", "BLDG", "BUILDING", "OFFICE", "INC", "CORP", "PLAZA"]):
                 st.session_state.structural_type = "COMMERCIAL BUSINESS"
-            elif any(token in clean_street_upper for token in ["APT", "APARTMENT", "UNIT", "FL", "FLOOR", "TH", "TOWNHOUSE"]):
+            elif any(token in combined_search_string for token in ["APT", "APARTMENT", "UNIT", "FL", "FLOOR", "TH", "TOWNHOUSE", "REAR", "BACK"]):
                 st.session_state.structural_type = "MULTI-UNIT COMPLEX"
             else:
                 st.session_state.structural_type = "SINGLE-FAMILY HOME"
@@ -219,7 +219,7 @@ with input_panel:
                     st.session_state.output_display_name = str(res.get("display_name", "")).upper()
                     st.session_state.gis_is_active = True
                 else:
-                    if "80107" in encoded_zip or "HIGH POINT" in clean_street_upper:
+                    if "80107" in encoded_zip or "HIGH POINT" in combined_search_string:
                         st.session_state.output_county = "Elbert County"
                     else:
                         st.session_state.output_county = "Denver County"
@@ -247,7 +247,7 @@ with input_panel:
                 except:
                     st.session_state.federal_geoid_15 = f"08{str(abs(hash(st.session_state.output_county)))[:3]}000000000"
 
-                # --- CODE B: CALCULATE COMPLIANCE RULES DYNAMICALLY ---
+                # Calculate Compliance Rules
                 if "Residential" in st.session_state.routing_profile:
                     if st.session_state.structural_type == "MULTI-UNIT COMPLEX" and not st.session_state.input_apt_suite:
                         st.session_state.ray_baums_status = "RES_WARNING_MISSING_UNIT"
@@ -255,12 +255,10 @@ with input_panel:
                         st.session_state.ray_baums_status = "RES_COMPLIANT"
                     st.session_state.network_bssid_token = "N/A (RESIDENTIAL HUD)"
                 else:
-                    # Commercial Track Rule Processing
                     if st.session_state.input_apt_suite and st.session_state.input_floor:
                         st.session_state.ray_baums_status = "ENTERPRISE_COMPLIANT"
                     else:
                         st.session_state.ray_baums_status = "ENTERPRISE_NON_COMPLIANT_MISSING_SUBUNIT"
-                    # Generate a hardware network anchor simulation key for the enterprise pitch
                     seed_mac = abs(hash(f"{st.session_state.last_searched_street} NETWORK ANCHOR"))
                     st.session_state.network_bssid_token = f"BSSID-00:1A:2B:3C:{str(seed_mac)[:2]}:{str(seed_mac)[2:4]}"
 
@@ -299,7 +297,6 @@ with display_panel:
         target_county = st.session_state.output_county
         st.success(f"Jurisdiction Confirmed: {target_county.upper()}")
         
-        # CODE B: DYNAMIC COMPLIANCE STATUS RADAR DISPLAY PANEL
         st.markdown("### Compliance Status Audit")
         if st.session_state.ray_baums_status == "RES_COMPLIANT":
             st.success("STATUS: RESIDENTIAL PROFILE VALIDATED CLEAN")
@@ -333,7 +330,6 @@ with display_panel:
             st.markdown(f"**Official Authority Contact:** `{st.session_state.county_contact_email}`")
             st.markdown(f"**Calculated Lat/Lon Coordinates:** `{st.session_state.output_lat} , {st.session_state.output_lon}`")
         
-        # --- ADDITIONAL SOURCES ---
         st.markdown("### Additional Sources")
         search_addr = f"{st.session_state.last_searched_street}, CO {st.session_state.last_searched_zip}"
         encoded_addr = urllib.parse.quote(search_addr)
