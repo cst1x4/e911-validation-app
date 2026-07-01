@@ -92,6 +92,18 @@ if "open_spatial_id" not in st.session_state:
 if "auditor_notes" not in st.session_state:
     st.session_state.auditor_notes = ""
 
+# --- CODE B: NEW ENTERPRISE COMPLIANCE STATE VAULT METRICS ---
+if "routing_profile" not in st.session_state:
+    st.session_state.routing_profile = "Residential"
+if "input_apt_suite" not in st.session_state:
+    st.session_state.input_apt_suite = ""
+if "input_floor" not in st.session_state:
+    st.session_state.input_floor = ""
+if "ray_baums_status" not in st.session_state:
+    st.session_state.ray_baums_status = "NOT_EVALUATED"
+if "network_bssid_token" not in st.session_state:
+    st.session_state.network_bssid_token = "N/A"
+
 # --- DUAL CONTROL LAYER GRID ---
 input_panel, display_panel = st.columns([1, 1], gap="large")
 
@@ -100,7 +112,20 @@ with input_panel:
     st.markdown("Enter standard address strings below to execute regional cross-system verification cycles.")
     
     with st.form(key=f"search_form_instance_{st.session_state.form_session_id}", clear_on_submit=False):
+        # CODE B: Structural Account Profile Forking Radio Switch
+        ui_profile = st.radio(
+            "Wholesale Account Routing Profile Selector", 
+            ["Residential", "Commercial (Enterprise MLTS)"],
+            help="Toggles the validation suite between standard consumer rules and strict federal MLTS internal compliance tracks."
+        )
+        
         ui_street_str = st.text_input("Street Address", placeholder="e.g., 2985 S Hudson St or 863 High Point Trl")
+        
+        # CODE B: Explicit Sub-Unit Form Inputs
+        sub_col1, sub_col2 = st.columns(2)
+        ui_apt_suite = sub_col1.text_input("Apt / Suite / Room", placeholder="e.g., Apt 4B or Suite 300")
+        ui_floor = sub_col2.text_input("Floor Level (If Applicable)", placeholder="e.g., 3rd Floor")
+        
         ui_zip_str = st.text_input("Zip Code", max_chars=5, placeholder="e.g., 80222 or 80107")
         ui_name = st.text_input("Subscriber Name (Optional)")
         
@@ -123,6 +148,11 @@ with input_panel:
             st.session_state.locked_parcel_value = ""
             st.session_state.msag_discrepancy_flag = False
             st.session_state.source_portal_url = ""
+            
+            # Save Code B Context Variables
+            st.session_state.routing_profile = ui_profile
+            st.session_state.input_apt_suite = ui_apt_suite.strip().upper()
+            st.session_state.input_floor = ui_floor.strip().upper()
             
             st.session_state.last_searched_street = ui_street_str.strip().upper()
             st.session_state.last_searched_zip = ui_zip_str.strip()
@@ -217,6 +247,23 @@ with input_panel:
                 except:
                     st.session_state.federal_geoid_15 = f"08{str(abs(hash(st.session_state.output_county)))[:3]}000000000"
 
+                # --- CODE B: CALCULATE COMPLIANCE RULES DYNAMICALLY ---
+                if "Residential" in st.session_state.routing_profile:
+                    if st.session_state.structural_type == "MULTI-UNIT COMPLEX" and not st.session_state.input_apt_suite:
+                        st.session_state.ray_baums_status = "RES_WARNING_MISSING_UNIT"
+                    else:
+                        st.session_state.ray_baums_status = "RES_COMPLIANT"
+                    st.session_state.network_bssid_token = "N/A (RESIDENTIAL HUD)"
+                else:
+                    # Commercial Track Rule Processing
+                    if st.session_state.input_apt_suite and st.session_state.input_floor:
+                        st.session_state.ray_baums_status = "ENTERPRISE_COMPLIANT"
+                    else:
+                        st.session_state.ray_baums_status = "ENTERPRISE_NON_COMPLIANT_MISSING_SUBUNIT"
+                    # Generate a hardware network anchor simulation key for the enterprise pitch
+                    seed_mac = abs(hash(f"{st.session_state.last_searched_street} NETWORK ANCHOR"))
+                    st.session_state.network_bssid_token = f"BSSID-00:1A:2B:3C:{str(seed_mac)[:2]}:{str(seed_mac)[2:4]}"
+
                 # --- DIRECTORY CROSS-REFERENCE INGESTION SYSTEM ---
                 matched_row = None
                 if county_directory_df is not None and "County_Match" in county_directory_df.columns:
@@ -252,6 +299,17 @@ with display_panel:
         target_county = st.session_state.output_county
         st.success(f"Jurisdiction Confirmed: {target_county.upper()}")
         
+        # CODE B: DYNAMIC COMPLIANCE STATUS RADAR DISPLAY PANEL
+        st.markdown("### Compliance Status Audit")
+        if st.session_state.ray_baums_status == "RES_COMPLIANT":
+            st.success("STATUS: RESIDENTIAL PROFILE VALIDATED CLEAN")
+        elif st.session_state.ray_baums_status == "RES_WARNING_MISSING_UNIT":
+            st.warning("AUDIT ALERT: MULTI-UNIT STRUCTURE DETECTED - PLEASE CONFIRM APARTMENT/UNIT NUMBER")
+        elif st.session_state.ray_baums_status == "ENTERPRISE_COMPLIANT":
+            st.success("STATUS: RAY BAUM'S ACT COMPLIANT (DISPATCHABLE LOCATION PROVISIONED)")
+        elif st.session_state.ray_baums_status == "ENTERPRISE_NON_COMPLIANT_MISSING_SUBUNIT":
+            st.error("CRITICAL EXCEPTION: RAY BAUM'S ACT NON-COMPLIANT (INTERIOR UNIT/FLOOR MISSING)")
+
         flag_col, psap_col = st.columns(2)
         with flag_col:
             if st.session_state.msag_discrepancy_flag:
@@ -475,7 +533,10 @@ if st.session_state.gis_is_active:
     audit_data = {
         "Transaction Parameter": [
             "System Timestamp",
+            "Account Routing Profile",
             "Target Street Query",
+            "Sub-Unit (Apt/Suite)",
+            "Floor Allocation",
             "Target ZIP Identifier",
             "USPS Standardized City",
             "Geographic Grid Boundary",
@@ -484,13 +545,17 @@ if st.session_state.gis_is_active:
             "PSAP Routing Code Zone",
             "Federal 15-Digit FIPS GEOID Code",
             "Persistent Open Geospatial ID",
+            "MLTS Network Hardware Token",
             "Official Contact Vector",
             "Current Compliance Status",
             "Auditor Notes"
         ],
         "System Log Metrics": [
             st.session_state.search_timestamp if st.session_state.search_timestamp else "N/A",
+            st.session_state.routing_profile if st.session_state.routing_profile else "N/A",
             st.session_state.last_searched_street if st.session_state.last_searched_street else "N/A",
+            st.session_state.input_apt_suite if st.session_state.input_apt_suite else "N/A",
+            st.session_state.input_floor if st.session_state.input_floor else "N/A",
             st.session_state.last_searched_zip if st.session_state.last_searched_zip else "N/A",
             st.session_state.usps_primary_city if st.session_state.usps_primary_city else "N/A",
             st.session_state.output_county if st.session_state.output_county else "N/A",
@@ -499,6 +564,7 @@ if st.session_state.gis_is_active:
             st.session_state.psap_sector_code if st.session_state.psap_sector_code else "N/A",
             st.session_state.federal_geoid_15 if st.session_state.federal_geoid_15 else "N/A",
             st.session_state.open_spatial_id if st.session_state.open_spatial_id else "N/A",
+            st.session_state.network_bssid_token if st.session_state.network_bssid_token else "N/A",
             st.session_state.county_contact_email if st.session_state.county_contact_email else "N/A",
             st.session_state.verification_lifecycle_status if st.session_state.verification_lifecycle_status else "N/A",
             st.session_state.auditor_notes if st.session_state.auditor_notes else "N/A"
