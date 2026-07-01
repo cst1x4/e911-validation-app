@@ -40,15 +40,8 @@ county_directory_df = load_county_directory()
 
 
 # --- SECURE BACKGROUND STATE VAULT ---
-# Force explicit, clean initialization of all session states to guarantee no proxy lookup failures
 if "gis_is_active" not in st.session_state:
     st.session_state.gis_is_active = False
-if "auditor_notes" not in st.session_state:
-    st.session_state.auditor_notes = ""
-if "federal_geoid_15" not in st.session_state:
-    st.session_state.federal_geoid_15 = "PENDING API CYCLE"
-if "open_spatial_id" not in st.session_state:
-    st.session_state.open_spatial_id = "PENDING BOUNDARY CYCLE"
 if "output_county" not in st.session_state:
     st.session_state.output_county = None
 if "output_lat" not in st.session_state:
@@ -80,7 +73,7 @@ if "search_timestamp" not in st.session_state:
 if "structural_type" not in st.session_state:
     st.session_state.structural_type = ""
 if "registered_identity" not in st.session_state:
-    st.session_state.registered_identity = "UNIDENTIFIED"
+    st.session_state.registered_identity = ""
 if "psap_sector_code" not in st.session_state:
     st.session_state.psap_sector_code = "UNASSIGNED"
 if "msag_discrepancy_flag" not in st.session_state:
@@ -93,6 +86,12 @@ if "source_portal_url" not in st.session_state:
     st.session_state.source_portal_url = ""
 if "form_session_id" not in st.session_state:
     st.session_state.form_session_id = 0
+if "federal_geoid_15" not in st.session_state:
+    st.session_state.federal_geoid_15 = "PENDING API CYCLE"
+if "open_spatial_id" not in st.session_state:
+    st.session_state.open_spatial_id = "PENDING BOUNDARY CYCLE"
+if "auditor_notes" not in st.session_state:
+    st.session_state.auditor_notes = ""
 
 # --- DUAL CONTROL LAYER GRID ---
 input_panel, display_panel = st.columns([1, 1], gap="large")
@@ -156,7 +155,7 @@ with input_panel:
             else:
                 st.session_state.structural_type = "SINGLE-FAMILY HOME"
 
-            # Boundary resolution mapping (OpenStreetMap Layer)
+            # Boundary resolution mapping
             encoded_street = urllib.parse.quote(ui_street_str.strip())
             encoded_zip = urllib.parse.quote(ui_zip_str.strip())
             api_url = f"https://nominatim.openstreetmap.org/search?street={encoded_street}&postalcode={encoded_zip}&state=CO&format=json&addressdetails=1&countrycodes=us&limit=1"
@@ -228,13 +227,7 @@ with input_panel:
                 if matched_row is not None:
                     st.session_state.parcel_label = str(matched_row.get("Token_Label", "ACCOUNT / PARCEL ID")).upper()
                 else:
-                    county_lower = st.session_state.output_county.lower()
-                    if "denver" in county_lower:
-                        st.session_state.parcel_label = "SCHEDULE NUMBER"
-                    elif "elbert" in county_lower:
-                        st.session_state.parcel_label = "ACCOUNT#"
-                    else:
-                        st.session_state.parcel_label = "ACCOUNT / PARCEL ID"
+                    st.session_state.parcel_label = "ACCOUNT / PARCEL ID"
 
                 st.session_state.county_contact_email = "csterrellart@gmail.com"
                 st.session_state.psap_sector_code = f"PSAP-ZONE-{str(abs(hash(st.session_state.output_county)))[:3]}-E911"
@@ -278,10 +271,9 @@ with display_panel:
         search_addr = f"{st.session_state.last_searched_street}, CO {st.session_state.last_searched_zip}"
         encoded_addr = urllib.parse.quote(search_addr)
         
-        src_col1, src_col2, src_col3 = st.columns(3)
-        src_col1.link_button("Bing Maps", f"https://www.bing.com/maps?q={encoded_addr}", use_container_width=True)
-        src_col2.link_button("Zillow", f"https://www.zillow.com/homes/{encoded_addr}_rb/", use_container_width=True)
-        src_col3.link_button("Homes.com", f"https://www.homes.com/real-estate/{encoded_addr}/for-sale/", use_container_width=True)
+        src_col1, src_col2 = st.columns(2)
+        src_col1.link_button("Bing Maps Portal", f"https://www.bing.com/maps?q={encoded_addr}", use_container_width=True)
+        src_col2.link_button("Zillow Core Portal", f"https://www.zillow.com/homes/{encoded_addr}_rb/", use_container_width=True)
     else:
         st.info("Awaiting structural input to activate geospatial validation telemetry...")
 
@@ -294,18 +286,21 @@ with parcel_col:
     if st.session_state.gis_is_active:
         st.markdown("Carrier-grade structural verification vectors mapping directly to federal spatial registries.")
         
+        encoded_street_val = urllib.parse.quote(st.session_state.last_searched_street)
+        encoded_zip_val = urllib.parse.quote(st.session_state.last_searched_zip)
+        
+        # Dynamic Test URL for Census Bureau
+        census_test_url = f"https://geocoding.geo.census.gov/geocoder/geographies/address?street={encoded_street_val}&zip={encoded_zip_val}&state=CO&benchmark=Public_AR_Current&vintage=Current_Current"
+        # Dynamic Test URL for OpenStreetMap Nodes
+        osm_test_url = f"https://nominatim.openstreetmap.org/ui/search.html?q={encoded_street_val}+{encoded_zip_val}"
+        
         with st.container(border=True):
-            st.metric(
-                label="Federal 15-Digit FIPS GEOID Code", 
-                value=st.session_state.federal_geoid_15,
-                help="Governmental Public Safety baseline boundary token identifying State, County, Tract, and Block grouping."
-            )
+            st.markdown(f"**[Launch Testing Endpoint: Federal 15-Digit FIPS GEOID Code]({census_test_url})**")
+            st.metric(label="Current Value", value=st.session_state.federal_geoid_15)
+            
         with st.container(border=True):
-            st.metric(
-                label="Persistent Open Geospatial ID", 
-                value=st.session_state.open_spatial_id,
-                help="Immutable geospatial spatial-grid anchor tracking unique physical structures."
-            )
+            st.markdown(f"**[Launch Testing Endpoint: Persistent Open Geospatial ID]({osm_test_url})**")
+            st.metric(label="Current Value", value=st.session_state.open_spatial_id)
     else:
         st.caption("Panel offline. Ingest an address path above to populate.")
 
@@ -320,6 +315,23 @@ with usps_col:
         st.markdown(f'<iframe width="100%" height="160" frameborder="0" src="https://maps.google.com/maps?q={urllib.parse.quote(map_query_string)}&z=16&output=embed"></iframe>', unsafe_allow_html=True)
     else:
         st.caption("Panel offline. Ingest an address path above to populate.")
+
+# --- LIVE EMBEDDED INTEL PORTAL LAYER ---
+st.markdown("---")
+st.header("Live Property Intel Feed")
+if st.session_state.gis_is_active:
+    search_addr_raw = f"{st.session_state.last_searched_street}, CO {st.session_state.last_searched_zip}"
+    encoded_addr_zillow = urllib.parse.quote(search_addr_raw)
+    zillow_iframe_url = f"https://www.zillow.com/homes/{encoded_addr_zillow}_rb/"
+    
+    st.markdown("### Automated Real-Time Zillow Portal Stream")
+    st.markdown(f"**Direct Link Asset Path:** `{zillow_iframe_url}`")
+    st.markdown(
+        f'<iframe src="{zillow_iframe_url}" width="100%" height="500" style="border:2px solid #1E3A8A; border-radius:8px;"></iframe>', 
+        unsafe_allow_html=True
+    )
+else:
+    st.caption("Status note: Real-time intelligence feed offline. Submit a spatial routing query above to open pipeline streams.")
 
 # --- AUTOMATED LIFECYCLE TRACKING ENGINE PANEL ---
 st.markdown("---")
