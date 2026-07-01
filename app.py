@@ -174,7 +174,7 @@ with input_panel:
                 st.session_state.usps_state = "CO"
                 st.session_state.usps_allowed_municipalities = ["DATA COMPLETION EXCEPTION"]
 
-            # --- CODE B FIX: ENHANCED STRUCTURAL PROFILING LOGIC ---
+            # Enhanced Structural Profiling Logic
             combined_search_string = f"{st.session_state.last_searched_street} {st.session_state.input_apt_suite} {st.session_state.input_floor}"
             
             if "Commercial" in st.session_state.routing_profile:
@@ -303,7 +303,7 @@ with display_panel:
         elif st.session_state.ray_baums_status == "RES_WARNING_MISSING_UNIT":
             st.warning("AUDIT ALERT: MULTI-UNIT STRUCTURE DETECTED - PLEASE CONFIRM APARTMENT/UNIT NUMBER")
         elif st.session_state.ray_baums_status == "ENTERPRISE_COMPLIANT":
-            st.success("STATUS: RAY BAUM'S ACT COMPLIANT (DISPATCHABLE LOCATION PROVISIONED)")
+            st.success("STATUS: RAY BAUM'S ACT & KARI'S LAW ENTERPRISE COMPLIANT")
         elif st.session_state.ray_baums_status == "ENTERPRISE_NON_COMPLIANT_MISSING_SUBUNIT":
             st.error("CRITICAL EXCEPTION: RAY BAUM'S ACT NON-COMPLIANT (INTERIOR UNIT/FLOOR MISSING)")
 
