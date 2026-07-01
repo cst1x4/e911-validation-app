@@ -23,7 +23,6 @@ st.markdown(
 
 # --- DETECTED REGIONAL DATA DIRECTORY LAYER ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# EXPLICIT FIX: Single extension mapping directly to your sanitized Excel file
 EXCEL_PATH = os.path.join(BASE_DIR, "data", "denver_metro_directory.xlsx")
 
 @st.cache_data
@@ -41,8 +40,15 @@ county_directory_df = load_county_directory()
 
 
 # --- SECURE BACKGROUND STATE VAULT ---
+# Force explicit, clean initialization of all session states to guarantee no proxy lookup failures
 if "gis_is_active" not in st.session_state:
     st.session_state.gis_is_active = False
+if "auditor_notes" not in st.session_state:
+    st.session_state.auditor_notes = ""
+if "federal_geoid_15" not in st.session_state:
+    st.session_state.federal_geoid_15 = "PENDING API CYCLE"
+if "open_spatial_id" not in st.session_state:
+    st.session_state.open_spatial_id = "PENDING BOUNDARY CYCLE"
 if "output_county" not in st.session_state:
     st.session_state.output_county = None
 if "output_lat" not in st.session_state:
@@ -74,7 +80,7 @@ if "search_timestamp" not in st.session_state:
 if "structural_type" not in st.session_state:
     st.session_state.structural_type = ""
 if "registered_identity" not in st.session_state:
-    st.session_state.registered_identity = ""
+    st.session_state.registered_identity = "UNIDENTIFIED"
 if "psap_sector_code" not in st.session_state:
     st.session_state.psap_sector_code = "UNASSIGNED"
 if "msag_discrepancy_flag" not in st.session_state:
@@ -87,12 +93,6 @@ if "source_portal_url" not in st.session_state:
     st.session_state.source_portal_url = ""
 if "form_session_id" not in st.session_state:
     st.session_state.form_session_id = 0
-
-# --- NEW DETERMINISTIC SECURITY LAYER STATE VARIABLES ---
-if "federal_geoid_15" not in st.session_state:
-    st.session_state.federal_geoid_15 = "PENDING API CYCLE"
-if "open_spatial_id" not in st.session_state:
-    st.session_state.open_spatial_id = "PENDING BOUNDARY CYCLE"
 
 # --- DUAL CONTROL LAYER GRID ---
 input_panel, display_panel = st.columns([1, 1], gap="large")
@@ -171,7 +171,6 @@ with input_panel:
                     raw_county = address_details.get("county")
                     raw_city = address_details.get("city")
                     
-                    # EXTRACT IMPROVEMENT 2: Persistent OpenStreetMap Spatial Grid Anchor
                     st.session_state.open_spatial_id = str(res.get("place_id", "NODE-UNRESOLVED"))
                     
                     if raw_county:
@@ -201,7 +200,7 @@ with input_panel:
                     st.session_state.gis_is_active = True
                     st.session_state.msag_discrepancy_flag = True
 
-                # EXTRACT IMPROVEMENT 1: Federal Public Safety Geocoding Service (15-Digit FIPS Block ID)
+                # Federal Public Safety Geocoding Service (15-Digit FIPS Block ID)
                 census_url = f"https://geocoding.geo.census.gov/geocoder/geographies/address?street={encoded_street}&zip={encoded_zip}&state=CO&benchmark=Public_AR_Current&vintage=Current_Current&format=json"
                 try:
                     census_res = requests.get(census_url, timeout=5).json()
@@ -314,18 +313,13 @@ with usps_col:
     st.header("USPS Routing Reference")
     if st.session_state.gis_is_active and st.session_state.usps_primary_city:
         with st.container(border=True):
-            st.markdown(f"**Standardized City:** `{st.session_state.usps_primary_city}`")
+            st.markdown(f"**USPS Standardized Text Profile:** `{st.session_state.usps_standardized_line1}, {st.session_state.usps_primary_city}, CO`")
             st.markdown(f"**Accepted Municipalities:** `{', '.join(st.session_state.usps_allowed_municipalities)}`")
         
         map_query_string = f"{st.session_state.last_searched_street}, {st.session_state.usps_primary_city}, CO {st.session_state.last_searched_zip}"
         st.markdown(f'<iframe width="100%" height="160" frameborder="0" src="https://maps.google.com/maps?q={urllib.parse.quote(map_query_string)}&z=16&output=embed"></iframe>', unsafe_allow_html=True)
     else:
         st.caption("Panel offline. Ingest an address path above to populate.")
-
-# --- AUDITOR NOTES ---
-st.markdown("---")
-st.header("Auditor Notes")
-st.session_state.auditor_notes = st.text_area("Findings/Discrepancies:", value=st.session_state.auditor_notes, placeholder="Enter verification notes here...")
 
 # --- AUTOMATED LIFECYCLE TRACKING ENGINE PANEL ---
 st.markdown("---")
@@ -403,6 +397,11 @@ if st.session_state.gis_is_active:
             st.text(email_body)
             
             st.link_button("Manual Local Mail Client Dispatch Backup Override", f"mailto:{email_recipient}?subject={urllib.parse.quote(email_subject)}&body={urllib.parse.quote(email_body)}", use_container_width=True)
+
+    # --- AUDITOR NOTES ---
+    st.markdown("---")
+    st.header("Auditor Notes")
+    st.session_state.auditor_notes = st.text_area("Findings/Discrepancies:", value=st.session_state.auditor_notes, placeholder="Enter verification notes here...")
 
     # --- TIMESTAMPED SUMMARY AND AUDIT LOG RETENTION MODULE ---
     st.markdown("---")
