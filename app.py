@@ -141,7 +141,6 @@ with input_panel:
                     st.session_state.usps_state = primary_place.get("state abbreviation", "").upper()
                     st.session_state.usps_standardized_line1 = ui_street_str.strip().upper()
                     
-                    # Store all unique cities associated with this ZIP delivery zone
                     all_cities = [p.get("place name", "").upper() for p in places if p.get("place name")]
                     st.session_state.usps_allowed_municipalities = sorted(list(set(all_cities)))
             except:
@@ -229,8 +228,16 @@ with input_panel:
 
                 if matched_row is not None:
                     st.session_state.parcel_label = str(matched_row.get("Token_Label", "ACCOUNT / PARCEL ID")).upper()
+                    st.session_state.source_portal_url = str(matched_row.get("Endpoint_Url", "https://www.denvergov.org/Property")).strip()
                 else:
-                    st.session_state.parcel_label = "ACCOUNT / PARCEL ID"
+                    st.session_state.source_portal_url = "https://www.denvergov.org/Property"
+                    county_lower = st.session_state.output_county.lower()
+                    if "denver" in county_lower:
+                        st.session_state.parcel_label = "SCHEDULE NUMBER"
+                    elif "elbert" in county_lower:
+                        st.session_state.parcel_label = "ACCOUNT#"
+                    else:
+                        st.session_state.parcel_label = "ACCOUNT / PARCEL ID"
 
                 st.session_state.county_contact_email = "csterrellart@gmail.com"
                 st.session_state.psap_sector_code = f"PSAP-ZONE-{str(abs(hash(st.session_state.output_county)))[:3]}-E911"
@@ -311,7 +318,6 @@ with usps_col:
         with st.container(border=True):
             st.markdown(f"**Preferred Mailing City:** `{st.session_state.usps_primary_city}`")
             
-            # Filter alternatives cleanly to prevent repeating the primary city
             alternatives = [c for c in st.session_state.usps_allowed_municipalities if c != st.session_state.usps_primary_city]
             if alternatives:
                 st.markdown(f"**Alternative Acceptable MSAG Sectors:** `{', '.join(alternatives)}`")
@@ -324,6 +330,63 @@ with usps_col:
         st.markdown(f'<iframe width="100%" height="160" frameborder="0" src="https://maps.google.com/maps?q={urllib.parse.quote(map_query_string)}&z=16&output=embed"></iframe>', unsafe_allow_html=True)
     else:
         st.caption("Panel offline. Ingest an address path above to populate.")
+
+# --- TACTICAL OVERRIDE & WIKI KNOWLEDGE NODES ---
+st.markdown("---")
+wiki_panel, county_panel = st.columns([1, 1], gap="large")
+
+with wiki_panel:
+    st.header("Wiki Address Intelligence Node")
+    if st.session_state.gis_is_active:
+        with st.container(border=True):
+            st.markdown("**Operational Framework Status:** `[PRODUCTION STAGE QUEUED]`")
+            st.info(
+                """
+                The fully operational enterprise model integrates an automated semantic search layer 
+                across centralized and regional Wiki geospatial indexes for every queried address footprint. 
+                This extracts auxiliary structural histories and municipal boundary modifications 
+                to flag historical MSAG routing drift automatically.
+                """
+            )
+    else:
+        st.caption("Panel offline. Run a location query above to initialize telemetry streams.")
+
+with county_panel:
+    st.header("County Portal & Real Estate Fallback")
+    if st.session_state.gis_is_active:
+        with st.container(border=True):
+            st.markdown(f"**Target Authority Registry:** `{st.session_state.output_county.upper()}`")
+            st.markdown(f"**Expected Parameter Standard:** `{st.session_state.parcel_label}`")
+            
+            # Generate clean fallbacks based on street string format
+            clean_street_url_enc = urllib.parse.quote(st.session_state.last_searched_street)
+            target_portal_link = st.session_state.source_portal_url
+            
+            if "spatialest.com" in target_portal_link:
+                final_county_route = f"{target_portal_link.rstrip('/')}/search/{clean_street_url_enc}"
+            else:
+                final_county_route = target_portal_link
+
+            st.link_button(
+                label=f"Launch Legacy {st.session_state.output_county.upper()} Property Assessor Interface",
+                url=final_county_route,
+                type="secondary",
+                use_container_width=True
+            )
+            
+            st.markdown(
+                """
+                <small style="color: #6B7280; display: block; margin-top: 10px; line-height: 1.3;">
+                <strong>Architectural Security Risk Warning:</strong> Interfacing directly with fragmented county 
+                assessor servers requires either brittle, layout-dependent programmatic DOM scraping or slow, 
+                high-latency manual discovery by a human auditor. Both ingestion workflows expose carrier data pipelines 
+                to script breaking failures, structural schema changes, and significant exception-handling operational overhead.
+                </small>
+                """,
+                unsafe_allow_html=True
+            )
+    else:
+        st.caption("Panel offline. Run a location query above to initialize telemetry streams.")
 
 # --- AUTOMATED LIFECYCLE TRACKING ENGINE PANEL ---
 st.markdown("---")
