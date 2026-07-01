@@ -289,9 +289,7 @@ with parcel_col:
         encoded_street_val = urllib.parse.quote(st.session_state.last_searched_street)
         encoded_zip_val = urllib.parse.quote(st.session_state.last_searched_zip)
         
-        # Dynamic Test URL for Census Bureau
         census_test_url = f"https://geocoding.geo.census.gov/geocoder/geographies/address?street={encoded_street_val}&zip={encoded_zip_val}&state=CO&benchmark=Public_AR_Current&vintage=Current_Current"
-        # Dynamic Test URL for OpenStreetMap Nodes
         osm_test_url = f"https://nominatim.openstreetmap.org/ui/search.html?q={encoded_street_val}+{encoded_zip_val}"
         
         with st.container(border=True):
@@ -315,23 +313,6 @@ with usps_col:
         st.markdown(f'<iframe width="100%" height="160" frameborder="0" src="https://maps.google.com/maps?q={urllib.parse.quote(map_query_string)}&z=16&output=embed"></iframe>', unsafe_allow_html=True)
     else:
         st.caption("Panel offline. Ingest an address path above to populate.")
-
-# --- LIVE EMBEDDED INTEL PORTAL LAYER ---
-st.markdown("---")
-st.header("Live Property Intel Feed")
-if st.session_state.gis_is_active:
-    search_addr_raw = f"{st.session_state.last_searched_street}, CO {st.session_state.last_searched_zip}"
-    encoded_addr_zillow = urllib.parse.quote(search_addr_raw)
-    zillow_iframe_url = f"https://www.zillow.com/homes/{encoded_addr_zillow}_rb/"
-    
-    st.markdown("### Automated Real-Time Zillow Portal Stream")
-    st.markdown(f"**Direct Link Asset Path:** `{zillow_iframe_url}`")
-    st.markdown(
-        f'<iframe src="{zillow_iframe_url}" width="100%" height="500" style="border:2px solid #1E3A8A; border-radius:8px;"></iframe>', 
-        unsafe_allow_html=True
-    )
-else:
-    st.caption("Status note: Real-time intelligence feed offline. Submit a spatial routing query above to open pipeline streams.")
 
 # --- AUTOMATED LIFECYCLE TRACKING ENGINE PANEL ---
 st.markdown("---")
