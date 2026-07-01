@@ -140,7 +140,10 @@ with input_panel:
                     st.session_state.usps_primary_city = primary_place.get("place name", "").upper()
                     st.session_state.usps_state = primary_place.get("state abbreviation", "").upper()
                     st.session_state.usps_standardized_line1 = ui_street_str.strip().upper()
-                    st.session_state.usps_allowed_municipalities = [p.get("place name", "").upper() for p in places]
+                    
+                    # Store all unique cities associated with this ZIP delivery zone
+                    all_cities = [p.get("place name", "").upper() for p in places if p.get("place name")]
+                    st.session_state.usps_allowed_municipalities = sorted(list(set(all_cities)))
             except:
                 st.session_state.usps_primary_city = "COLORADO MUNICIPALITY"
                 st.session_state.usps_state = "CO"
@@ -306,8 +309,16 @@ with usps_col:
     st.header("USPS Routing Reference")
     if st.session_state.gis_is_active and st.session_state.usps_primary_city:
         with st.container(border=True):
-            st.markdown(f"**USPS Standardized Text Profile:** `{st.session_state.usps_standardized_line1}, {st.session_state.usps_primary_city}, CO`")
-            st.markdown(f"**Accepted Municipalities:** `{', '.join(st.session_state.usps_allowed_municipalities)}`")
+            st.markdown(f"**Preferred Mailing City:** `{st.session_state.usps_primary_city}`")
+            
+            # Filter alternatives cleanly to prevent repeating the primary city
+            alternatives = [c for c in st.session_state.usps_allowed_municipalities if c != st.session_state.usps_primary_city]
+            if alternatives:
+                st.markdown(f"**Alternative Acceptable MSAG Sectors:** `{', '.join(alternatives)}`")
+            else:
+                st.markdown("**Alternative Acceptable MSAG Sectors:** `NONE DETECTED (SINGLE MUNICIPALITY BOUNDARY)`")
+                
+            st.markdown(f"**USPS Standardized Line 1:** `{st.session_state.usps_standardized_line1}`")
         
         map_query_string = f"{st.session_state.last_searched_street}, {st.session_state.usps_primary_city}, CO {st.session_state.last_searched_zip}"
         st.markdown(f'<iframe width="100%" height="160" frameborder="0" src="https://maps.google.com/maps?q={urllib.parse.quote(map_query_string)}&z=16&output=embed"></iframe>', unsafe_allow_html=True)
