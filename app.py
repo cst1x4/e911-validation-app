@@ -10,7 +10,6 @@ from datetime import datetime
 st.set_page_config(page_title="E911 Automated Validation Tool", layout="wide")
 
 st.title("E911 Automated Validation Tool")
-st.caption("Demo model is for Colorado only. The full version will cover the CLECs entire footprint.")
 st.markdown("---")
 
 st.markdown(
@@ -342,10 +341,10 @@ with wiki_panel:
             st.markdown("**Operational Framework Status:** `[PRODUCTION STAGE QUEUED]`")
             st.info(
                 """
-                The fully operational enterprise model integrates an automated semantic search layer 
-                across centralized and regional Wiki geospatial indexes for every queried address footprint. 
-                This extracts auxiliary structural histories and municipal boundary modifications 
-                to flag historical MSAG routing drift automatically.
+                The fully operational enterprise model completely integrates a specialized background 
+                search layer across Comcast's internal WIKI Pages for every queried address record. This process 
+                cross-references institutional engineering knowledge, legacy site logs, and regional routing changes 
+                to flag potential address discrepancies.
                 """
             )
     else:
@@ -358,7 +357,6 @@ with county_panel:
             st.markdown(f"**Target Authority Registry:** `{st.session_state.output_county.upper()}`")
             st.markdown(f"**Expected Parameter Standard:** `{st.session_state.parcel_label}`")
             
-            # Generate clean fallbacks based on street string format
             clean_street_url_enc = urllib.parse.quote(st.session_state.last_searched_street)
             target_portal_link = st.session_state.source_portal_url
             
@@ -377,10 +375,9 @@ with county_panel:
             st.markdown(
                 """
                 <small style="color: #6B7280; display: block; margin-top: 10px; line-height: 1.3;">
-                <strong>Architectural Security Risk Warning:</strong> Interfacing directly with fragmented county 
-                assessor servers requires either brittle, layout-dependent programmatic DOM scraping or slow, 
-                high-latency manual discovery by a human auditor. Both ingestion workflows expose carrier data pipelines 
-                to script breaking failures, structural schema changes, and significant exception-handling operational overhead.
+                <strong>Operational Security Risk Warning:</strong> Relying directly on external county tax assessor portals 
+                through automated web scraping or manual manual audit processes introduces unacceptable operational risks. These approaches 
+                expose data streams to interface breaking structural changes, localized access blocks, and significant resource overhead.
                 </small>
                 """,
                 unsafe_allow_html=True
